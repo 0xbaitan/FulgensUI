@@ -24,7 +24,7 @@ dist-ssr
 *.sw?
 
 ## Panda
-styled-system
-styled-system-studio
+fulgens
+fulgens-studio
 *storybook.log
 storybook-static

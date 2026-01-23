@@ -1,4 +1,4 @@
-import { css } from "../../styled-system/css";
+import { css } from "fulgens/css";
 import type { ReactNode } from "react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

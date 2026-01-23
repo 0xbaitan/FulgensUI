@@ -61,7 +61,7 @@ const config: Config = {
         theme: {
           customCss: "./src/css/custom.css",
         },
-      } as Parameters<typeof import("@docusaurus/preset-classic").default>[0],
+      },
     ],
   ],
 
@@ -141,7 +141,7 @@ const config: Config = {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
     },
-  } as Parameters<typeof import("@docusaurus/preset-classic").default>[0],
+  },
 };
 
 export default config;

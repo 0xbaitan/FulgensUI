@@ -5,7 +5,10 @@ export default defineConfig({
   preflight: true,
 
   // Where to look for your css declarations
-  include: ["./src/**/*.{js,jsx,ts,tsx}", "./stories/**/*.{js,jsx,ts,tsx,mdx}"],
+  include: [
+    "./src/**/*.{js,jsx,ts,tsx,mdx}",
+    "./stories/**/*.{js,jsx,ts,tsx,mdx}",
+  ],
 
   // Files to exclude
   exclude: [],
@@ -16,5 +19,13 @@ export default defineConfig({
   },
 
   // The output directory for your css system
-  outdir: "styled-system",
+  outdir: "fulgens",
+
+  importMap: {
+    css: "fulgens/css",
+    tokens: "fulgens/tokens",
+    recipes: "fulgens/recipes",
+    jsx: "fulgens/jsx",
+    patterns: "fulgens/patterns",
+  },
 });
