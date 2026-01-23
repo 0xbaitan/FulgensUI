@@ -4,32 +4,32 @@ import styles from './styles.module.css';
 
 const FeatureList = [
   {
-    title: 'Easy to Use',
+    title: 'Built with Modern Tools',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        FulgensUI leverages the latest React features and PandaCSS for 
+        zero-runtime styling, ensuring optimal performance and developer experience.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
+    title: 'Component-Driven Development',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        Focus on building features with our pre-built, customizable components. 
+        Every component is documented and tested in Storybook.
       </>
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'Type-Safe and Scalable',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Enjoy full TypeScript support and PandaCSS type safety. Built for teams 
+        that need reliable, maintainable UI components at scale.
       </>
     ),
   },
