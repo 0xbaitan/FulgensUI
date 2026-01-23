@@ -1,0 +1,116 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  NODE_VERSION: "20.20.0"
+
+# Cache node_modules for faster builds
+.node_cache: &node_cache
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - node_modules/
+      - packages/*/node_modules/
+
+# Build the core UI components
+build-core:
+  stage: build
+  image: node:${NODE_VERSION}
+  <<: *node_cache
+  script:
+    - npm ci
+    - cd packages/core
+    - npm run build
+  artifacts:
+    paths:
+      - packages/core/dist/
+    expire_in: 1 week
+  only:
+    - main
+    - merge_requests
+
+# Build Storybook for core components
+build-storybook:
+  stage: build
+  image: node:${NODE_VERSION}
+  <<: *node_cache
+  script:
+    - npm ci
+    - cd packages/core
+    - npx panda codegen --silent
+    - npm run build-storybook
+  artifacts:
+    paths:
+      - packages/core/storybook-static/
+    expire_in: 1 week
+  only:
+    - main
+    - merge_requests
+
+# Build the docsite
+build-docsite:
+  stage: build
+  image: node:${NODE_VERSION}
+  <<: *node_cache
+  script:
+    - npm ci
+    - cd packages/docsite
+    - npm run build
+  artifacts:
+    paths:
+      - packages/docsite/build/
+    expire_in: 1 week
+  only:
+    - main
+    - merge_requests
+
+# Deploy docsite to GitHub Pages
+deploy-docsite:
+  stage: deploy
+  image: node:${NODE_VERSION}
+  <<: *node_cache
+  before_script:
+    - apt-get update && apt-get install -y git
+    - git config --global user.email "ci@fulgensui.com"
+    - git config --global user.name "FulgensUI CI"
+  script:
+    - npm ci
+    - cd packages/docsite
+    - npm run build
+    # Set up GitHub credentials
+    - git remote add github https://${GITHUB_TOKEN}@github.com/0xbaitan/FulgensUI.git || git remote set-url github https://${GITHUB_TOKEN}@github.com/0xbaitan/FulgensUI.git
+    # Deploy to gh-pages branch
+    - cd build
+    - git init
+    - git add -A
+    - git commit -m "Deploy to GitHub Pages"
+    - git branch -M gh-pages
+    - git push -f github gh-pages
+  dependencies:
+    - build-docsite
+  only:
+    - main
+  when: manual
+
+# Build and upload core components as artifacts
+package-core:
+  stage: deploy
+  image: node:${NODE_VERSION}
+  <<: *node_cache
+  script:
+    - npm ci
+    - cd packages/core
+    - npm run build
+    - tar -czf ../fulgensui-core.tar.gz dist/
+  artifacts:
+    paths:
+      - packages/fulgensui-core.tar.gz
+    expire_in: 1 month
+  dependencies:
+    - build-core
+  only:
+    - main
+    - tags
