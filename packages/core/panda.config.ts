@@ -1,8 +1,11 @@
 import { defineConfig } from "@pandacss/dev";
+import * as recipes from "@/recipes";
 
 export default defineConfig({
   // Whether to use css reset
   preflight: true,
+
+  prefix: "fui",
 
   // Where to look for your css declarations
   include: [
@@ -13,19 +16,14 @@ export default defineConfig({
   // Files to exclude
   exclude: [],
 
+  outdir: "./src/styled-system",
+
   // Useful for theme customization
   theme: {
-    extend: {},
-  },
-
-  // The output directory for your css system
-  outdir: "fulgens",
-
-  importMap: {
-    css: "fulgens/css",
-    tokens: "fulgens/tokens",
-    recipes: "fulgens/recipes",
-    jsx: "fulgens/jsx",
-    patterns: "fulgens/patterns",
+    extend: {
+      recipes: {
+        ...recipes,
+      },
+    },
   },
 });

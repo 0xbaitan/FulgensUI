@@ -22,10 +22,13 @@
 
     "paths": {
       "@/*": ["./src/*"],
-      "fulgens/*": ["./fulgens/*"]
-    },
-    "types": ["./global.d.ts"]
+      "@recipes/*": ["./src/recipes/*"],
+      "@styled-system/*": ["./src/styled-system/*"],
+      "@components/*": ["./src/components/*"],
+      "@stories/*": ["./src/stories/*"]
+    }
   },
-  "include": ["src"],
+  "types": ["./src/global.d.ts"],
+  "include": ["./src/**/*.*", "./*.ts", ".storybook/**/*.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
