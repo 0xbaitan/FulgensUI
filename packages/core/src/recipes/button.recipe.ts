@@ -26,6 +26,7 @@ export const button = defineRecipe({
         color: "white",
       },
       secondary: {
+        border: "2px solid {colors.blue.400}",
         backgroundColor: "#f9f9f9",
         color: "#213547",
       },

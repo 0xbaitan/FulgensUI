@@ -18,8 +18,15 @@ const config: StorybookConfig = {
   core: {
     builder: "@storybook/builder-vite",
   },
+  typescript: {
+    check: true,
+    reactDocgen: "react-docgen-typescript",
+  },
   framework: "@storybook/react-vite",
   logLevel: "info",
+  docs: {
+    docsMode: true,
+  },
   viteFinal: (config) => {
     return mergeConfig(config, {
       plugins: [tsconfigPaths()],
