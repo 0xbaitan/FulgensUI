@@ -1,6 +1,6 @@
 import { defineRecipe } from "@pandacss/dev";
 
-export const button = defineRecipe({
+export const buttonRecipe = defineRecipe({
   className: "button",
   base: {
     padding: "12px 24px",

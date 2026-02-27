@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Button as FulgensButton, ButtonProps } from "@components/button";
-import { button } from "@styled-system/recipes";
+import { Button, ButtonProps } from "../button";
+import { button } from "@/styled-system/recipes";
 
 const meta: Meta<ButtonProps> = {
   title: "Components/Button",
-  component: FulgensButton,
+  component: Button,
   parameters: {
     layout: "centered",
   },
@@ -38,7 +38,7 @@ const meta: Meta<ButtonProps> = {
 
 export default meta;
 
-export const Button: StoryObj<ButtonProps> = {};
+export const Default: StoryObj<ButtonProps> = {};
 
 export const Primary: StoryObj<ButtonProps> = {
   args: button.raw({

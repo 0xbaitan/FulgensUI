@@ -22,10 +22,9 @@
 
     "paths": {
       "@/*": ["./src/*"],
-      "@recipes/*": ["./src/recipes/*"],
       "@styled-system/*": ["./src/styled-system/*"],
       "@components/*": ["./src/components/*"],
-      "@stories/*": ["./src/stories/*"]
+      "@config/*": ["./src/config/*"]
     }
   },
   "types": ["./src/global.d.ts"],

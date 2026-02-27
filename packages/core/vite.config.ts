@@ -13,12 +13,17 @@ const dirname =
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      "@/*": path.resolve(dirname, "src"),
-      "@recipes/*": path.resolve(dirname, "src/recipes"),
-      "@styled-system/*": path.resolve(dirname, "src/styled-system"),
-      "@components/*": path.resolve(dirname, "src/components"),
-      "@stories/*": path.resolve(dirname, "src/stories"),
-    },
+    alias: [
+      { find: "@", replacement: path.resolve(dirname, "src") },
+      {
+        find: "@styled-system",
+        replacement: path.resolve(dirname, "src/styled-system"),
+      },
+      {
+        find: "@components",
+        replacement: path.resolve(dirname, "src/components"),
+      },
+      { find: "@config", replacement: path.resolve(dirname, "src/config") },
+    ],
   },
 });

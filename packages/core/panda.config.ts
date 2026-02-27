@@ -1,6 +1,8 @@
 import { defineConfig } from "@pandacss/dev";
-import * as recipes from "@/recipes";
-import { colors } from "@/tokens/base";
+
+import { tokens } from "@config/tokens";
+import { recipes } from "@config/recipes";
+import { semanticTokens } from "@config/semantic-tokens";
 
 export default defineConfig({
   // Whether to use css reset
@@ -15,21 +17,16 @@ export default defineConfig({
   ],
 
   // Files to exclude
-  exclude: [],
+  exclude: ["node_modules", "dist", "build", "styled-system"],
 
   outdir: "./src/styled-system",
 
   // Useful for theme customization
   theme: {
     extend: {
-      tokens: {
-        colors: {
-          ...colors,
-        },
-      },
-      recipes: {
-        ...recipes,
-      },
+      tokens,
+      semanticTokens,
+      recipes,
     },
   },
 });
