@@ -17,7 +17,7 @@ body:
     attributes:
       label: Priority
       description: "must have | should have | could have | won't have"
-      placeholder: "should have"
+      placeholder: "E.g., should have"
     validations:
       required: true
 
@@ -26,28 +26,28 @@ body:
     attributes:
       label: Estimate
       description: "Fibonacci: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 (leave empty if unknown)"
-      placeholder: "5"
+      placeholder: "E.g., 1"
 
   - type: input
     id: blocked_by
     attributes:
       label: Blocked By
       description: "Issue number that blocks this (leave empty if not blocked)"
-      placeholder: ""
+      placeholder: "E.g., #123"
 
   - type: input
     id: parent_link
     attributes:
       label: Parent Link
       description: "Parent issue number (leave empty if no parent)"
-      placeholder: ""
+      placeholder: "E.g., #123"
 
   - type: input
     id: theme
     attributes:
       label: Theme
       description: "Component or theme label (e.g., Button, Modal, Core, Docs)"
-      placeholder: ""
+      placeholder: "Enter theme"
 
   - type: textarea
     id: feature
