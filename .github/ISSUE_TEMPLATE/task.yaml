@@ -1,0 +1,87 @@
+name: 📋 Task
+description: Technical task
+title: "[Task]: "
+labels: ["task"]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      description: "Issue title (max 256 characters)"
+      placeholder: "Brief description of the task"
+    validations:
+      required: true
+
+  - type: input
+    id: priority
+    attributes:
+      label: Priority
+      description: "must have | should have | could have | won't have"
+      placeholder: "should have"
+    validations:
+      required: true
+
+  - type: input
+    id: estimate
+    attributes:
+      label: Estimate
+      description: "Fibonacci: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 (leave empty if unknown)"
+      placeholder: "3"
+
+  - type: input
+    id: blocked_by
+    attributes:
+      label: Blocked By
+      description: "Issue number that blocks this (leave empty if not blocked)"
+      placeholder: ""
+
+  - type: input
+    id: parent_link
+    attributes:
+      label: Parent Link
+      description: "Epic issue number (leave empty if no parent)"
+      placeholder: ""
+
+  - type: input
+    id: theme
+    attributes:
+      label: Theme
+      description: "Component or theme label (e.g., Button, Modal, Core, Docs)"
+      placeholder: ""
+
+  - type: textarea
+    id: technical_context
+    attributes:
+      label: Technical Context
+      description: "Background/technical details"
+      placeholder: "Describe the technical context or background..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation_approach
+    attributes:
+      label: Implementation Approach
+      description: "How to approach the task"
+      placeholder: "Describe the approach to implement this task..."
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: "What is needed"
+      placeholder: "List any dependencies or prerequisites..."
+
+  - type: textarea
+    id: test_criteria
+    attributes:
+      label: Test Criteria
+      description: "How to verify completion"
+      placeholder: "How will you verify this task is complete..."
+
+  - type: textarea
+    id: subtasks
+    attributes:
+      label: Subtasks
+      description: "Checklist items to complete (optional, max 15)"
+      placeholder: "- [ ] Task 1&#10;- [ ] Task 2&#10;- [ ] Task 3"

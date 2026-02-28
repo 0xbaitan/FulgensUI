@@ -1,0 +1,100 @@
+name: 🐞 Bug Report
+description: File a bug report
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      description: "Issue title (max 256 characters)"
+      placeholder: "Brief description of the bug"
+    validations:
+      required: true
+
+  - type: input
+    id: priority
+    attributes:
+      label: Priority
+      description: "must have | should have | could have | won't have"
+      placeholder: "should have"
+    validations:
+      required: true
+
+  - type: input
+    id: estimate
+    attributes:
+      label: Estimate
+      description: "Fibonacci: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 (leave empty if unknown)"
+      placeholder: "5"
+
+  - type: input
+    id: blocked_by
+    attributes:
+      label: Blocked By
+      description: "Issue number that blocks this (leave empty if not blocked)"
+      placeholder: ""
+
+  - type: input
+    id: parent_link
+    attributes:
+      label: Parent Link
+      description: "Parent issue number (leave empty if no parent)"
+      placeholder: ""
+
+  - type: input
+    id: theme
+    attributes:
+      label: Theme
+      description: "Component or theme label (e.g., Button, Modal, Core, Docs)"
+      placeholder: ""
+
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature
+      description: "Summary of the affected feature"
+      placeholder: "Describe the feature this bug affects..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Scenario
+      description: "Steps to reproduce the bug"
+      placeholder: "1. Go to...&#10;2. Click on...&#10;3. Observe..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior
+      description: "What should happen"
+      placeholder: "Describe what you expect to happen..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: Actual Behavior
+      description: "What actually happens"
+      placeholder: "Describe what actually happens..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: "OS, browser, version, etc."
+      placeholder: "e.g., macOS 14.0, Chrome 120, FulgensUI v1.0.0"
+
+  - type: textarea
+    id: subtasks
+    attributes:
+      label: Subtasks
+      description: "Checklist items to complete (optional, max 15)"
+      placeholder: "- [ ] Task 1&#10;- [ ] Task 2&#10;- [ ] Task 3"

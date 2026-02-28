@@ -1,0 +1,100 @@
+name: ⚡ Epic
+description: Large feature requiring multiple stories
+title: "[Epic]: "
+labels: ["epic"]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      description: "Issue title (max 256 characters)"
+      placeholder: "Brief description of the epic"
+    validations:
+      required: true
+
+  - type: input
+    id: priority
+    attributes:
+      label: Priority
+      description: "must have | should have | could have | won't have"
+      placeholder: "should have"
+    validations:
+      required: true
+
+  - type: input
+    id: estimate
+    attributes:
+      label: Estimate
+      description: "Fibonacci: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 (leave empty if unknown)"
+      placeholder: "13"
+
+  - type: input
+    id: blocked_by
+    attributes:
+      label: Blocked By
+      description: "Issue number that blocks this (leave empty if not blocked)"
+      placeholder: ""
+
+  - type: input
+    id: parent_link
+    attributes:
+      label: Parent Link
+      description: "Parent issue number (leave empty if no parent)"
+      placeholder: ""
+
+  - type: input
+    id: theme
+    attributes:
+      label: Theme
+      description: "Component or theme label (e.g., Button, Modal, Core, Docs)"
+      placeholder: ""
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: "What you want to achieve"
+      placeholder: "Describe the overall goal of this epic..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: stakeholder
+    attributes:
+      label: Stakeholder
+      description: "Who is this for"
+      placeholder: "Who is the target user or customer..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature
+      description: "High-level feature description"
+      placeholder: "Describe the feature at a high level..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope & Deliverables
+      description: "What is included/excluded"
+      placeholder: "In:&#10;- Item 1&#10;- Item 2&#10;&#10;Out:&#10;- Item 3"
+    validations:
+      required: true
+
+  - type: textarea
+    id: milestones
+    attributes:
+      label: Milestones
+      description: "Key milestones"
+      placeholder: "1. Milestone 1&#10;2. Milestone 2&#10;3. Milestone 3"
+
+  - type: textarea
+    id: subtasks
+    attributes:
+      label: Child Issues
+      description: "Child stories/tasks to create (optional, max 15)"
+      placeholder: "- [ ] Story: User can...&#10;- [ ] Task: Implement API..."

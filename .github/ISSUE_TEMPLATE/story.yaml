@@ -1,0 +1,82 @@
+name: 📖 Story
+description: User story with acceptance criteria
+title: "[Story]: "
+labels: ["story"]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      description: "Issue title (max 256 characters)"
+      placeholder: "Brief description of the story"
+    validations:
+      required: true
+
+  - type: input
+    id: priority
+    attributes:
+      label: Priority
+      description: "must have | should have | could have | won't have"
+      placeholder: "should have"
+    validations:
+      required: true
+
+  - type: input
+    id: estimate
+    attributes:
+      label: Estimate
+      description: "Fibonacci: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 (leave empty if unknown)"
+      placeholder: "5"
+
+  - type: input
+    id: blocked_by
+    attributes:
+      label: Blocked By
+      description: "Issue number that blocks this (leave empty if not blocked)"
+      placeholder: ""
+
+  - type: input
+    id: parent_link
+    attributes:
+      label: Parent Link
+      description: "Epic issue number (leave empty if no parent)"
+      placeholder: ""
+
+  - type: input
+    id: theme
+    attributes:
+      label: Theme
+      description: "Component or theme label (e.g., Button, Modal, Core, Docs)"
+      placeholder: ""
+
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User Story
+      description: "As a [user], I want [action], So that [benefit]"
+      placeholder: "As a..., I want..., So that..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: "What needs to be fulfilled (Given-When-Then format)"
+      placeholder: "Given...&#10;When...&#10;Then..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: Background
+      description: "Any additional context"
+      placeholder: "Additional context or background information..."
+
+  - type: textarea
+    id: subtasks
+    attributes:
+      label: Subtasks
+      description: "Checklist items to complete (optional, max 15)"
+      placeholder: "- [ ] Task 1&#10;- [ ] Task 2&#10;- [ ] Task 3"

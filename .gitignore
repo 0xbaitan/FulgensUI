@@ -38,3 +38,6 @@ yarn-error.log*
 
 # PandaCSS
 styled-system
+
+# Temp
+.temp/**
