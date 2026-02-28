@@ -1,0 +1,6 @@
+[install]
+# No install-specific settings yet
+
+[alias]
+"fulgens/*" = "./packages/core/fulgens/*"
+"@/*" = "./packages/core/src/*"
