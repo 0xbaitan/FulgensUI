@@ -35,9 +35,9 @@ function execCommand(command: string): string {
 
 function extractIssueId(branchName: string): string | null {
   const patterns = [
-    /(?:issues?|tasks?|PRs?|bugs?|features?)[\/-]?(\d+)/i,
+    /(?:issues?|tasks?|PRs?|bugs?|features?)[/-]?(\d+)/i,
     /\/(\d+)-/,
-    /(?:^|[-\/])(\d+)(?:[-\/]|$)/,
+    /(?:^|[/-])(\d+)(?:[/-]|$)/,
   ];
 
   for (const pattern of patterns) {
@@ -59,7 +59,7 @@ function determineScope(stagedFiles: string[]): string | null {
       scopes.add(packageMatch[1]);
     } else if (file.startsWith("packages/core/src/components/ui/")) {
       const componentMatch = file.match(
-        /packages\/core\/src\/components\/ui\/(\w+)/
+        /packages\/core\/src\/components\/ui\/(\w+)/,
       );
       if (componentMatch) {
         scopes.add(componentMatch[1]);
@@ -80,7 +80,8 @@ async function runTests(scope: string | null): Promise<{
   if (scope === "core") {
     command = "cd packages/core && bun vitest run --coverage";
   } else if (scope === "docsite") {
-    command = "cd packages/docsite && bun vitest run --coverage 2>/dev/null || echo 'No tests configured'";
+    command =
+      "cd packages/docsite && bun vitest run --coverage 2>/dev/null || echo 'No tests configured'";
   } else {
     command = "bun run test";
   }
@@ -88,7 +89,7 @@ async function runTests(scope: string | null): Promise<{
   const output = execCommand(command);
 
   const coverageMatch = output.match(
-    /All files\s*\|\s*[\d.]+\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/
+    /All files\s*\|\s*[\d.]+\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/,
   );
 
   let coverage: Coverage | null = null;
@@ -109,11 +110,13 @@ async function runTests(scope: string | null): Promise<{
 async function callOllama(prompt: string): Promise<string> {
   console.log("\n🤖 Generating commit message with Ollama...");
 
-  const curlCommand = `curl -s http://localhost:11434/api/generate -d '${JSON.stringify({
-    model: OLLAMA_MODEL,
-    prompt,
-    stream: false,
-  })}'`;
+  const curlCommand = `curl -s http://localhost:11434/api/generate -d '${JSON.stringify(
+    {
+      model: OLLAMA_MODEL,
+      prompt,
+      stream: false,
+    },
+  )}'`;
 
   const response = execCommand(curlCommand);
 
@@ -198,13 +201,46 @@ Do NOT include any markdown formatting or code blocks.
 `;
 }
 
-async function openInEditor(content: string, filePath: string): Promise<string> {
-  const editor = process.env.EDITOR || process.env.VISUAL || "nano";
+function isVSCodeAvailable(): boolean {
+  try {
+    execSync("which code", { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getEditorPreference(): {
+  useVSCode: boolean;
+  force: boolean;
+  outputOnly: boolean;
+} {
+  const args = process.argv.slice(2);
+  const forceCLI = args.includes("--cli");
+  const forceVSCode = args.includes("--vscode");
+  const outputOnly = args.includes("--output-only");
+
+  if (outputOnly) return { useVSCode: false, force: true, outputOnly: true };
+  if (forceCLI) return { useVSCode: false, force: true, outputOnly: false };
+  if (forceVSCode) return { useVSCode: true, force: true, outputOnly: false };
+
+  return { useVSCode: isVSCodeAvailable(), force: false, outputOnly: false };
+}
+
+async function openInEditor(
+  content: string,
+  filePath: string,
+): Promise<string> {
+  const { useVSCode } = getEditorPreference();
+  const editor = useVSCode
+    ? "code"
+    : process.env.EDITOR || process.env.VISUAL || "nano";
+  const args = useVSCode ? ["--wait", filePath] : [filePath];
 
   await writeFile(filePath, content);
 
   return new Promise((resolve, reject) => {
-    const child = spawn(editor, [filePath], {
+    const child = spawn(editor, args, {
       stdio: "inherit",
       shell: true,
     });
@@ -284,13 +320,26 @@ Issue Reference: ${issueId ? `#${issueId}` : "None"}
 
 `;
 
-  console.log("\n📝 Opening editor for review...");
+  const { useVSCode, outputOnly } = getEditorPreference();
+  const editorName = useVSCode ? "VSCode" : "CLI (nano/vim)";
+
+  if (outputOnly) {
+    console.log("\n📤 Output-only mode: displaying commit message only\n");
+    console.log("📝 Commit message:");
+    console.log(commitMessage);
+    console.log(`\n💾 Coverage: ${coverageDisplay}`);
+    process.exit(0);
+  }
+
+  console.log(`\n📝 Opening ${editorName} editor for review...`);
 
   try {
     const finalMessage = await openInEditor(editorContent, tempFilePath);
 
     const lines = finalMessage.split("\n");
-    const dividerIndex = lines.indexOf("====== AI Generated Commit Message ======");
+    const dividerIndex = lines.indexOf(
+      "====== AI Generated Commit Message ======",
+    );
     const commitMsg = lines
       .slice(dividerIndex + 1)
       .join("\n")

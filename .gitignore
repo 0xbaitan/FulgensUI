@@ -49,6 +49,7 @@ styled-system
 
 # Temp
 .temp/**
+logs/**
 node_modules
 
 specs/

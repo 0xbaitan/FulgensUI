@@ -34,6 +34,24 @@ You work in: `/home/hexbaitan/Projects/FulgensUI`
 
 - Reference issues in commit messages when applicable (e.g., "fix #123")
 
+### Commit Workflow
+
+When asked to commit changes, use the `/commit` command:
+
+1. **Use `/commit` command** - This triggers an interactive workflow that:
+   - Shows staged/unstaged file context
+   - Runs tests with coverage reporting
+   - Generates an AI-powered commit message using Ollama
+   - Opens VSCode (or CLI editor with `--cli`) for review
+   - Saves & closes → commits, closes without saving → cancels
+
+2. **Alternative**: Run script directly:
+   - `bun run scripts/ai-commit-agent.ts` - Auto-detects VSCode
+   - `bun run scripts/ai-commit-agent.ts --cli` - Force CLI editor
+   - `bun run scripts/ai-commit-agent.ts --vscode` - Force VSCode
+
+**Do NOT use `git commit` directly** - always use `/commit` or the script.
+
 ### Issue Management
 
 - When creating issues, use descriptive titles and include:
