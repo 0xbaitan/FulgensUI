@@ -26,6 +26,14 @@ yarn-error.log*
 .env
 .env*.local
 
+# Vendor
+vendor/
+
+# OpenCode Integrations
+lib/opencode/.env
+lib/opencode/*.log
+lib/opencode/opencode-penpot
+
 # IDE
 .vscode/
 .idea/
@@ -42,3 +50,5 @@ styled-system
 # Temp
 .temp/**
 node_modules
+
+specs/

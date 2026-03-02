@@ -1,13 +1,71 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "agent": {
-    "git": {
-      "description": "Git/GitHub specialist for FulgensUI - handles commits, issues, PRs, releases, branch management",
-      "mode": "subagent",
-      "disabled": false
+  "instructions": ["./AGENTS.md"],
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (local)",
+      "options": {
+        "baseURL": "http://localhost:11434/v1"
+      },
+      "models": {
+        "qwen2.5-coder:1.5b": {
+          "name": "Qwen2.5 Coder 1.5B",
+          "tool_call": true,
+          "limit": {
+            "context": 32768,
+            "output": 8192
+          }
+        },
+        "qwen2.5-coder:7b": {
+          "name": "Qwen2.5 Coder 7B",
+          "tool_call": true,
+          "limit": {
+            "context": 32768,
+            "output": 8192
+          }
+        },
+        "qwen2.5:latest": {
+          "name": "Qwen2.5 72B",
+          "tool_call": true,
+          "limit": {
+            "context": 131072,
+            "output": 16384
+          }
+        }
+      }
     }
   },
+  "permission": {
+    "bash": "allow",
+    "edit": "allow",
+    "read": "allow",
+    "grep": "allow",
+    "glob": "allow",
+    "list": "allow",
+    "write": "allow",
+    "patch": "allow",
+    "todowrite": "allow",
+    "todoread": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "question": "allow"
+  },
   "mcp": {
+    "penpot": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "mcp-remote",
+        "http://localhost:4401/mcp",
+        "--allow-http"
+      ],
+      "enabled": true,
+      "environment": {
+        "PENPOT_ACCESS_TOKEN": "{env:PENPOT_ACCESS_TOKEN}"
+      }
+    },
     "github": {
       "type": "local",
       "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
@@ -15,6 +73,22 @@
         "GITHUB_PERSONAL_ACCESS_TOKEN": "{env:GITHUB_TOKEN}"
       },
       "enabled": true
+    }
+  },
+  "agent": {
+    "git": {
+      "description": "Git/GitHub specialist for FulgensUI - handles commits, issues, PRs, releases, branch management",
+      "mode": "subagent",
+      "disabled": false
+    },
+    "designer": {
+      "description": "Design specialist for UI/UX prototyping with Penpot - creates wireframes, design tokens, color palettes, and design specifications. Uses Penpot MCP server (mcp-remote http://localhost:4401/mcp) to create and manage designs. Available tools: penpot_list_teams, penpot_list_projects, penpot_get_file, penpot_create_frame, penpot_create_shape, penpot_create_text, penpot_add_item_to_group, penpot_get_current-page, penpot_create_page, penpot_create_board, execute_code, penpot_api_info. STARTUP CHECK: When invoked, first check if penpot_* tools are available by attempting a simple query. If tools are unavailable or return 'not initialized' errors, the MCP server connection is not established. FALLBACK GUIDANCE: If MCP is not connected, inform the user: 'The Penpot MCP server is running but the plugin connection is not established. Please: 1) Open Penpot at http://localhost:9001, 2) Go to Plugins → Penpot MCP Plugin, 3) Click Connect to MCP server. Once connected, I can create the designs.' Do NOT proceed with design operations until MCP connection is verified. IMPORTANT: When creating shapes, ALWAYS apply styling: set borderRadius for rounded corners (e.g., shape.borderRadius = 6), set fills for background color (e.g., shape.fills = [{ fillColor: '#3B82F6', fillOpacity: 1 }]), and add text elements with proper fontSize.",
+      "mode": "subagent",
+      "tools": {
+        "write": true,
+        "edit": true,
+        "penpot_*": true
+      }
     }
   }
 }
