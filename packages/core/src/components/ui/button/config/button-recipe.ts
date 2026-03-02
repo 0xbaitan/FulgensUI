@@ -31,9 +31,24 @@ export const buttonRecipe = defineRecipe({
         color: "#213547",
       },
     },
+    size: {
+      sm: {
+        padding: "8px 16px",
+        fontSize: "14px",
+      },
+      md: {
+        padding: "12px 24px",
+        fontSize: "16px",
+      },
+      lg: {
+        padding: "16px 32px",
+        fontSize: "18px",
+      },
+    },
   },
 
   defaultVariants: {
     variant: "primary",
+    size: "md",
   },
 });

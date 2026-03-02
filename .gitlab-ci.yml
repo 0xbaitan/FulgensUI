@@ -1,4 +1,5 @@
 stages:
+  - test
   - build
   - deploy
 
@@ -15,6 +16,22 @@ variables:
       - node_modules/
       - packages/*/node_modules/
 
+# Lint and test core components
+test-core:
+  stage: test
+  image: node:${NODE_VERSION}
+  <<: *node_cache
+  script:
+    - npm ci
+    - cd packages/core
+    - npx panda codegen --silent
+    - npm run lint
+    - npm run type-check
+    - npm run test
+  only:
+    - main
+    - merge_requests
+
 # Build the core UI components
 build-core:
   stage: build
@@ -23,6 +40,7 @@ build-core:
   script:
     - npm ci
     - cd packages/core
+    - npx panda codegen --silent
     - npm run build
   artifacts:
     paths:

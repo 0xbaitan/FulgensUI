@@ -1,15 +1,9 @@
 /// <reference types="vite/client" />
 
-import type {
-  Meta,
-  StoryFn,
-  StoryObj,
-  ArgsTable as ArgsTableBlock,
-} from "@storybook/blocks";
-
 declare module "*.mdx" {
   import type { MDXProps } from "mdx/types";
-  const MDXContent: (props: MDXProps) => React.ReactElement;
+  // eslint-disable-next-line no-unused-vars
+  const MDXContent: (_props: MDXProps) => HTMLElement;
   export default MDXContent;
 }
 

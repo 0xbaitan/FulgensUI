@@ -28,6 +28,13 @@
     }
   },
   "types": ["./src/global.d.ts"],
-  "include": ["./src/**/*.*", "./*.ts", ".storybook/**/*.ts"],
+  "include": ["./src/**/*.*", ".storybook/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "storybook-static",
+    "*.config.ts"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

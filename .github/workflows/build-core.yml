@@ -23,8 +23,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -41,8 +41,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -51,6 +51,21 @@ jobs:
         run: |
           cd packages/core
           npx panda codegen --silent
+
+      - name: Lint code
+        run: |
+          cd packages/core
+          npm run lint
+
+      - name: Type check
+        run: |
+          cd packages/core
+          npm run type-check
+
+      - name: Run tests
+        run: |
+          cd packages/core
+          npm run test
 
       - name: Build core components
         run: |

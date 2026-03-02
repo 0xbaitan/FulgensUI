@@ -27,22 +27,15 @@ export default defineConfig({
     ],
   },
   test: {
-    environment: "browser",
+    environment: "happy-dom",
     globals: true,
-    setupFiles: ["./.storybook/vitest.setup.ts"],
+    setupFiles: ["./src/test/setup.ts"],
     include: ["**/*.test.{ts,tsx}", "**/__tests__/**/*.{ts,tsx}"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-      include: [
-        "src/components/**",
-        "src/config/**",
-      ],
-      exclude: [
-        "src/**/*.stories.{ts,tsx}",
-        "src/**/*.mdx",
-        "**/*.d.ts",
-      ],
+      include: ["src/components/**", "src/config/**"],
+      exclude: ["src/**/*.stories.{ts,tsx}", "src/**/*.mdx", "**/*.d.ts"],
       thresholds: {
         lines: 90,
         branches: 100,
