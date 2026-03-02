@@ -1,7 +1,6 @@
 ---
 description: Git/GitHub specialist for FulgensUI - handles commits, issues, PRs, releases, branch management
 mode: subagent
-model: ollama/qwen2.5-coder:7b
 prompt: {file:./prompts/git.md}
 temperature: 0.2
 tools:

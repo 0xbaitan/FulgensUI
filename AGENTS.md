@@ -264,6 +264,97 @@ npm run type-check
 - **GitHub Actions**: Runs on push/PR to build core and deploy docsite
 - **GitLab CI**: Full pipeline with build, test, and deployment
 
+## Git Hooks & Commit Workflow
+
+### Husky
+
+The project uses Husky for Git hooks with the following configuration:
+
+- **pre-commit**: Runs lint-staged to lint staged files before commit
+- **commit-msg**: Validates commit messages against Conventional Commits format
+
+### Conventional Commits
+
+All commit messages must follow the Conventional Commits specification:
+
+```
+type(scope): description
+
+[optional body]
+
+[optional footer]
+```
+
+**Types:**
+- `feat`: A new feature
+- `fix`: A bug fix
+- `docs`: Documentation only changes
+- `style`: Changes that do not affect the meaning of the code (formatting)
+- `refactor`: Code change that neither fixes a bug nor adds a feature
+- `perf`: Code change that improves performance
+- `test`: Adding missing tests or correcting existing tests
+- `build`: Changes that affect the build system or external dependencies
+- `ci`: Changes to CI configuration files and scripts
+- `chore`: Other changes that don't modify src or test files
+- `revert`: Reverts a previous commit
+
+**Examples:**
+```
+feat(button): add primary variant with hover state
+fix(input): resolve value not updating on change
+docs(readme): update installation instructions
+```
+
+### AI Commit Agent
+
+The project includes an AI-powered commit agent that helps generate conventional commit messages.
+
+**Usage:**
+
+```bash
+npm run ai-commit
+```
+
+**How it works:**
+
+1. **Staged Files**: Analyzes which files are staged for commit
+2. **Issue Detection**: Extracts issue ID from branch name (e.g., `feature/123-add-button` → `#123`)
+3. **Test Execution**: Runs tests with coverage (scoped to affected package when possible)
+4. **AI Generation**: Uses Ollama with `opencode/big-pickle` model to generate commit message
+5. **Review**: Opens editor for user to review/edit the generated message
+6. **Commit**: Creates the commit when user saves and closes the editor
+
+**Coverage Requirements:**
+
+- **Branch**: 100% (default threshold)
+- **Line**: 90% (default threshold)
+
+The agent displays coverage metrics before committing, allowing you to make an informed decision about whether to proceed.
+
+**Branch Naming for Issue Tracking:**
+
+Create branches with issue IDs using these patterns:
+- `feature/123-add-button`
+- `fix/456-hover-issue`
+- `tasks/789-update-docs`
+
+### Git Subagent for Committing
+
+When asked to commit changes, the git subagent should:
+
+1. **Check staged files**: `git diff --cached --name-only`
+2. **Determine scope**: Identify which package/component is affected
+3. **Run tests**: Execute tests for the affected package (or all tests if integration tests needed)
+4. **Discuss coverage**: Review coverage metrics with user - are thresholds met?
+5. **Generate message**: Use `npm run ai-commit` or manually craft a conventional commit
+6. **Validate format**: Ensure commit follows Conventional Commits specification
+7. **Allow edits**: Give user opportunity to edit the commit message if needed
+
+**Test Scope Selection:**
+- Package-scoped changes: Run tests only for that package
+- Integration/breaking changes: Run full test suite
+- Ask user if unsure about required test scope
+
 ## Additional Notes
 
 - Uses Bun as package manager (>= 1.3.0)

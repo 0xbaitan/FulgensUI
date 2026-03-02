@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006 --no-open --debug",
     "build-storybook": "storybook build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "type-check": "tsc --noEmit",
     "clear": "rm -rf node_modules/.cache/ vite.config.ts.storybook-static"
   },

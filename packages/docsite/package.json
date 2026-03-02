@@ -13,6 +13,7 @@
     "serve": "docusaurus serve",
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
+    "test": "vitest run",
     "type-check": "tsc --noEmit",
     "clear": "rm -rf node_modules/.cache/ build"
   },
