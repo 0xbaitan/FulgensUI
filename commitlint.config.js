@@ -1,6 +1,4 @@
-import { defineConfig } from "@commitlint/config-conventional";
-
-export default defineConfig({
+module.exports = {
   extends: ["@commitlint/config-conventional"],
   formatter: "@commitlint/format",
   rules: {
@@ -34,4 +32,4 @@ export default defineConfig({
       ],
     ],
   },
-});
+};

@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const OLLAMA_MODEL = "opencode/big-pickle";
+const OLLAMA_MODEL = "qwen2.5-coder:7b";
 
 interface Coverage {
   branches: number;

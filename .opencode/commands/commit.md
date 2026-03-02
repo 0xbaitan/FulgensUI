@@ -88,7 +88,7 @@ Use the script `bun run scripts/ai-commit-agent.ts` with appropriate flags:
 
 ```bash
 curl -s http://localhost:11434/api/generate -d '{
-  "model": "opencode/big-pickle",
+  "model": "qwen2.5-coder:7b",
   "prompt": "Generate a conventional commit message for: [git diff]",
   "stream": false
 }'
