@@ -13,6 +13,6 @@
       "@site/*": ["./"]
     }
   },
-  "include": ["src", "docusaurus.config.js", "sidebars.js"],
+  "include": ["src", "docusaurus.config.ts", "sidebars.ts"],
   "exclude": ["node_modules"]
 }
