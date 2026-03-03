@@ -14,7 +14,18 @@
     "clean": "turbo run clean",
     "clear": "rm -rf node_modules/.cache/ .turbo package-lock.json && turbo run clear",
     "prepare": "husky",
-    "ai-commit": "bun scripts/ai-commit-agent.ts"
+    "ai-commit": "bun scripts/ai-commit-agent.ts",
+    "ci:install": "bun install --frozen-lockfile",
+    "ci:panda": "turbo run panda",
+    "ci:lint": "turbo run lint",
+    "ci:type-check": "turbo run type-check",
+    "ci:test": "turbo run test",
+    "ci:test:coverage": "turbo run test -- --coverage",
+    "ci:build": "turbo run build",
+    "ci:build-storybook": "cd packages/core && bun run build-storybook",
+    "ci:all": "bun run ci:install && bun run ci:panda && bun run ci:lint && bun run ci:type-check && bun run ci:test:coverage && bun run ci:build && bun run ci:build-storybook",
+    "pre-commit:checks": "bun run ci:panda && bun run ci:lint && bun run ci:type-check",
+    "pre-commit:test:staged": "bun scripts/pre-commit-tests.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
