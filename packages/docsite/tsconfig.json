@@ -7,12 +7,17 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
 
     "paths": {
       "@/*": ["./src/*"],
-      "@site/*": ["./"]
-    }
+      "@site/*": ["./*"],
+      "@theme/*": [".docusaurus/docusaurus-theme-*"],
+      "@docusaurus/*": [".docusaurus/docusaurus-plugin-*"]
+    },
+
+    "types": ["@docusaurus/module-type-aliases", "@docusaurus/types"]
   },
-  "include": ["src", "docusaurus.config.ts", "sidebars.ts"],
+  "include": ["src", "docusaurus.config.ts", "sidebars.ts", ".docusaurus"],
   "exclude": ["node_modules"]
 }
