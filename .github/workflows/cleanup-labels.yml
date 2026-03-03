@@ -1,0 +1,211 @@
+name: Cleanup Labels
+
+# Daily cleanup job to enforce label consistency across all open issues
+# Runs at 00:00 GMT (midnight UTC) every day
+# Ensures:
+# - Only one status label per issue
+# - Only one priority label per issue
+# - Only one type label per issue
+# - All open issues have a status label
+
+on:
+  schedule:
+    # Run daily at 00:00 GMT (midnight UTC)
+    - cron: "0 0 * * *"
+  workflow_dispatch: # Allow manual trigger for testing
+
+permissions:
+  issues: write
+
+jobs:
+  cleanup-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup Issue Labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            console.log('Starting daily label cleanup...');
+            console.log(`Repository: ${owner}/${repo}`);
+            console.log(`Time: ${new Date().toISOString()}`);
+
+            // Define label categories
+            const statusLabels = [
+              'status:backlog',
+              'status:ready',
+              'status:development',
+              'status:review',
+              'status:qa',
+              'status:defect',
+              'status:done'
+            ];
+
+            const priorityLabels = [
+              'priority:must-have',
+              'priority:should-have',
+              'priority:could-have',
+              'priority:won\'t-have'
+            ];
+
+            const typeLabels = [
+              'type:feat',
+              'type:fix',
+              'type:docs',
+              'type:refactor',
+              'type:perf',
+              'type:build',
+              'type:test',
+              'type:ci',
+              'type:revert',
+              'type:chore',
+              'type:style'
+            ];
+
+            // Get all open issues
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            console.log(`Found ${issues.length} open issues to check.`);
+
+            let issuesFixed = 0;
+            let totalViolations = 0;
+
+            // Check each issue
+            for (const issue of issues) {
+              // Skip pull requests
+              if (issue.pull_request) {
+                continue;
+              }
+              
+              const labels = issue.labels.map(l => l.name);
+              console.log(`\nChecking issue #${issue.number}: ${labels.join(', ')}`);
+              
+              let issueModified = false;
+              const violations = [];
+              
+              // Check status labels
+              const currentStatusLabels = labels.filter(l => statusLabels.includes(l));
+              if (currentStatusLabels.length === 0) {
+                // Missing status label - add backlog
+                console.log(`  ⚠️  Missing status label. Adding status:backlog`);
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  labels: ['status:backlog']
+                });
+                violations.push('Missing status label (added status:backlog)');
+                issueModified = true;
+              } else if (currentStatusLabels.length > 1) {
+                // Multiple status labels - keep only the first one
+                console.log(`  ⚠️  Multiple status labels: ${currentStatusLabels.join(', ')}`);
+                const labelToKeep = currentStatusLabels[0];
+                const labelsToRemove = currentStatusLabels.slice(1);
+                
+                for (const label of labelsToRemove) {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    name: label
+                  });
+                  console.log(`  ❌ Removed: ${label}`);
+                }
+                
+                violations.push(`Multiple status labels (kept ${labelToKeep}, removed ${labelsToRemove.join(', ')})`);
+                issueModified = true;
+              }
+              
+              // Check priority labels
+              const currentPriorityLabels = labels.filter(l => priorityLabels.includes(l));
+              if (currentPriorityLabels.length > 1) {
+                console.log(`  ⚠️  Multiple priority labels: ${currentPriorityLabels.join(', ')}`);
+                const labelToKeep = currentPriorityLabels[0];
+                const labelsToRemove = currentPriorityLabels.slice(1);
+                
+                for (const label of labelsToRemove) {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    name: label
+                  });
+                  console.log(`  ❌ Removed: ${label}`);
+                }
+                
+                violations.push(`Multiple priority labels (kept ${labelToKeep}, removed ${labelsToRemove.join(', ')})`);
+                issueModified = true;
+              }
+              
+              // Check type labels
+              const currentTypeLabels = labels.filter(l => typeLabels.includes(l));
+              if (currentTypeLabels.length > 1) {
+                console.log(`  ⚠️  Multiple type labels: ${currentTypeLabels.join(', ')}`);
+                const labelToKeep = currentTypeLabels[0];
+                const labelsToRemove = currentTypeLabels.slice(1);
+                
+                for (const label of labelsToRemove) {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    name: label
+                  });
+                  console.log(`  ❌ Removed: ${label}`);
+                }
+                
+                violations.push(`Multiple type labels (kept ${labelToKeep}, removed ${labelsToRemove.join(', ')})`);
+                issueModified = true;
+              }
+              
+              // If issue was modified, add a comment
+              if (issueModified) {
+                issuesFixed++;
+                totalViolations += violations.length;
+                
+                const comment = `🧹 **Daily Label Cleanup**\n\n` +
+                  `This issue had label violations that were automatically corrected:\n\n` +
+                  violations.map(v => `- ${v}`).join('\n') + '\n\n' +
+                  `*This cleanup runs daily at 00:00 GMT to maintain label consistency.*`;
+                
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: comment
+                });
+                
+                console.log(`  ✅ Issue #${issue.number} fixed.`);
+              } else {
+                console.log(`  ✅ Issue #${issue.number} is clean.`);
+              }
+            }
+
+            // Summary
+            console.log('\n' + '='.repeat(60));
+            console.log('CLEANUP SUMMARY');
+            console.log('='.repeat(60));
+            console.log(`Total issues checked: ${issues.length}`);
+            console.log(`Issues fixed: ${issuesFixed}`);
+            console.log(`Total violations corrected: ${totalViolations}`);
+            console.log(`Clean issues: ${issues.length - issuesFixed}`);
+            console.log('='.repeat(60));
+
+            // Create a summary issue comment if any violations were found
+            if (totalViolations > 0) {
+              core.summary
+                .addHeading('Daily Label Cleanup Report')
+                .addRaw(`**Time:** ${new Date().toISOString()}`)
+                .addRaw(`**Total issues checked:** ${issues.length}`)
+                .addRaw(`**Issues fixed:** ${issuesFixed}`)
+                .addRaw(`**Total violations corrected:** ${totalViolations}`)
+                .addRaw(`**Clean issues:** ${issues.length - issuesFixed}`)
+                .write();
+            }

@@ -1,0 +1,101 @@
+name: Auto-Reopen to Backlog
+
+# Automatically resets status to backlog when a closed issue is reopened
+# This ensures reopened issues re-enter the workflow at the correct starting point
+
+on:
+  issues:
+    types: [reopened]
+
+permissions:
+  issues: write
+
+jobs:
+  auto-reopen-backlog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reset to Backlog
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            console.log(`Issue #${issue_number} reopened. Resetting to backlog...`);
+
+            // Get current labels
+            const { data: issue } = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number
+            });
+
+            const labels = issue.labels.map(l => l.name);
+            console.log(`Current labels: ${labels.join(', ')}`);
+
+            // Define all status labels
+            const statusLabels = [
+              'status:backlog',
+              'status:ready',
+              'status:development',
+              'status:review',
+              'status:qa',
+              'status:defect',
+              'status:done'
+            ];
+
+            // Find current status label
+            const currentStatusLabel = labels.find(l => statusLabels.includes(l));
+
+            if (currentStatusLabel && currentStatusLabel !== 'status:backlog') {
+              console.log(`Found status label: ${currentStatusLabel}`);
+              
+              // Remove current status label
+              await github.rest.issues.removeLabel({
+                owner,
+                repo,
+                issue_number,
+                name: currentStatusLabel
+              });
+              
+              console.log(`Removed: ${currentStatusLabel}`);
+              
+              // Add status:backlog
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number,
+                labels: ['status:backlog']
+              });
+              
+              console.log('✅ Added status:backlog');
+              
+              // Add informative comment
+              const comment = `🔄 **Issue Reopened**\n\n` +
+                `This issue has been automatically reset to \`status:backlog\`.\n\n` +
+                `Previous status: \`${currentStatusLabel}\`\n` +
+                `New status: \`status:backlog\`\n\n` +
+                `You can now move it through the workflow again.`;
+              
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: comment
+              });
+            } else if (!currentStatusLabel) {
+              // No status label found, add backlog
+              console.log('No status label found. Adding status:backlog...');
+              
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number,
+                labels: ['status:backlog']
+              });
+              
+              console.log('✅ Added status:backlog to reopened issue.');
+            } else {
+              console.log('Issue already has status:backlog. No action needed.');
+            }

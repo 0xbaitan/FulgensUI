@@ -1,384 +1,560 @@
-# GitHub Actions: Label ↔ Project Status Sync
+# GitHub Actions: Label Automation System
 
-This directory contains automated workflows that maintain bidirectional synchronization between GitHub issue labels and GitHub Projects V2 status fields.
+This directory contains automated workflows that enforce label-based issue management for FulgensUI.
 
 ## 📋 Overview
 
-**Goal:** Keep issue `status:*` labels in sync with the "Status" field on Project #9 (FulgensUI Kanban board).
+**Goal:** Maintain consistent, validated issue labels as the single source of truth for status, priority, and type tracking.
+
+### Why Label-Based?
+
+Previously, we attempted bidirectional sync with GitHub Project #9, but this failed because:
+
+- User-owned projects require PAT authentication (GITHUB_TOKEN doesn't work)
+- GraphQL queries fail in Actions for user projects
+- Webhook events (`projects_v2_item`) only work for org-owned projects
+
+**Benefits of label-only approach:**
+
+- ✅ No authentication issues (uses default GITHUB_TOKEN)
+- ✅ Instant sync (<30 seconds vs 15-minute delay)
+- ✅ Simpler implementation (REST API only, no GraphQL)
+- ✅ More portable (works in any repo)
+- ✅ No external dependencies
 
 ### Workflow Files
 
-1. **`sync-label-to-project.yml`** - Instant label → project sync
-2. **`sync-project-to-label.yml`** - Scheduled project → label sync (every 15 min)
-3. **`manual-sync-all.yml`** - Manual full bidirectional sync with dry-run support
+1. **`enforce-single-status.yml`** - Status label mutual exclusion + transition validation
+2. **`enforce-single-priority.yml`** - Priority label mutual exclusion
+3. **`enforce-single-type.yml`** - Type label mutual exclusion
+4. **`auto-label-new-issues.yml`** - Add status:backlog to new issues
+5. **`auto-close-done.yml`** - Close issues when status:done applied
+6. **`auto-reopen-backlog.yml`** - Reset to backlog when reopened
+7. **`cleanup-labels.yml`** - Daily cleanup job (00:00 GMT)
+
+### Documentation Files
+
+- **[LABEL-AUTOMATION.md](./LABEL-AUTOMATION.md)** - Comprehensive user guide (~400 lines)
+- **[TRANSITION-RULES.md](./TRANSITION-RULES.md)** - Visual transition matrix (~200 lines)
+- **[DIAGRAM.txt](./DIAGRAM.txt)** - Workflow diagrams
+
+---
+
+## 🏷️ Label Categories
+
+### 1. Status Labels (Mutually Exclusive)
+
+**Only ONE status label per issue:**
+
+- `status:backlog` - In backlog, not ready
+- `status:ready` - Ready for work
+- `status:development` - Actively being developed
+- `status:review` - In code review
+- `status:qa` - Being tested
+- `status:defect` - Has defect, needs rework
+- `status:done` - Complete (auto-closes issue)
+
+**Strict transition validation enforced.** See [TRANSITION-RULES.md](./TRANSITION-RULES.md).
+
+### 2. Priority Labels (Mutually Exclusive)
+
+**Only ONE priority label per issue:**
+
+- `priority:must-have` - Critical priority
+- `priority:should-have` - High priority
+- `priority:could-have` - Medium priority
+- `priority:won't-have` - Low priority
+
+**No transition validation** - any-to-any allowed.
+
+### 3. Type Labels (Mutually Exclusive)
+
+**Only ONE type label per issue:**
+
+- `type:feat` - New feature
+- `type:fix` - Bug fix
+- `type:docs` - Documentation
+- `type:refactor` - Code refactoring
+- `type:perf` - Performance improvement
+- `type:build` - Build system changes
+- `type:test` - Test changes
+- `type:ci` - CI/CD changes
+- `type:revert` - Revert change
+- `type:chore` - Other changes
+- `type:style` - Code style changes
+
+**No transition validation** - any-to-any allowed.
+
+### 4. Issue Labels (NOT Mutually Exclusive)
+
+**Multiple allowed** (separate from type labels):
+
+- `issue:bug` - Something broken
+- `issue:story` - User story
+- `issue:epic` - Large feature
+- `issue:task` - General task
+- `issue:item` - Generic work item
 
 ---
 
 ## 🔄 How It Works
 
-### Workflow 1: Label → Project (Instant)
+### Workflow 1: Status Label Enforcement (Instant)
 
-**Trigger:** When a `status:*` label is added/removed from an issue
+**Trigger:** When any label is added to an issue
 
 **Flow:**
 
 ```
-User adds/removes status:* label
+User adds status:* label
     ↓
-GitHub triggers "issues" event
+Workflow checks for multiple status labels
     ↓
-Workflow validates label format
+Validates transition (from old → new)
     ↓
-Finds issue in Project #9 via GraphQL
+If valid: Remove old label, keep new label
+If invalid: Remove new label, post error comment
     ↓
-Maps label to Status field option ID
+✅ Only one status label remains (<30 seconds)
+```
+
+**Example (Valid):**
+
+- Issue has `status:development`
+- User adds `status:review`
+- ✅ Kept `status:review`, removed `status:development`
+
+**Example (Invalid):**
+
+- Issue has `status:backlog`
+- User adds `status:done`
+- ❌ Removed `status:done`, kept `status:backlog`
+- Comment: "Cannot go from backlog → done. Valid next: ready, development, defect"
+
+---
+
+### Workflow 2: Priority/Type Label Enforcement (Instant)
+
+**Trigger:** When any label is added to an issue
+
+**Flow:**
+
+```
+User adds priority:* or type:* label
     ↓
-Updates Project Status field via GraphQL mutation
+Workflow checks for multiple labels in category
     ↓
-✅ Project board updates instantly (<30 seconds)
+Removes old label, keeps new label
+    ↓
+✅ Only one label remains (<30 seconds)
 ```
 
 **Example:**
 
-- Add `status:development` to issue #4 → Issue moves to "Development" column
-- Change `status:ready` to `status:review` → Issue moves to "Review" column
+- Issue has `priority:must-have`
+- User adds `priority:could-have`
+- ✅ Kept `priority:could-have`, removed `priority:must-have`
 
 ---
 
-### Workflow 2: Project → Label (Scheduled)
+### Workflow 3: Auto-Label New Issues
 
-**Trigger:** Runs every 15 minutes (cron: `*/15 * * * *`) + manual dispatch
+**Trigger:** When a new issue is created
 
 **Flow:**
 
 ```
-Cron trigger fires (every 15 min)
+New issue created
     ↓
-Fetches all items from Project #9
+Check if status label already exists
+    ↓
+If not: Add status:backlog
+    ↓
+✅ Issue enters workflow (<30 seconds)
+```
+
+---
+
+### Workflow 4: Auto-Close on Done
+
+**Trigger:** When `status:done` label is added
+
+**Flow:**
+
+```
+User adds status:done
+    ↓
+Check if issue is open
+    ↓
+Close issue (state: closed, reason: completed)
+    ↓
+Add informative comment
+    ↓
+✅ Issue closed automatically
+```
+
+---
+
+### Workflow 5: Auto-Reopen to Backlog
+
+**Trigger:** When a closed issue is reopened
+
+**Flow:**
+
+```
+User reopens closed issue
+    ↓
+Remove current status label
+    ↓
+Add status:backlog
+    ↓
+Add informative comment
+    ↓
+✅ Issue reset to start of workflow
+```
+
+---
+
+### Workflow 6: Daily Cleanup
+
+**Trigger:** Daily at 00:00 GMT + manual dispatch
+
+**Flow:**
+
+```
+Cron fires at midnight UTC
+    ↓
+Fetch all open issues
     ↓
 For each issue:
-  - Get Status field value (e.g., "Development")
-  - Get current status:* labels
-  - Compare and detect mismatches
-  - Remove old status:* label
-  - Add new status:* label matching Status field
+  - Check for multiple status/priority/type labels
+  - Check for missing status label
+  - Fix violations (keep first, remove rest)
+  - Add comment explaining fixes
     ↓
-✅ Labels sync with project within 15 minutes
+✅ All issues clean (<5 minutes)
 ```
 
-**Example:**
-
-- Drag issue #4 from "Backlog" to "Review" on project board
-- Wait up to 15 minutes (or trigger manually)
-- Label `status:backlog` removed, `status:review` added
-
 ---
 
-### Workflow 3: Manual Full Sync
+## 🗺️ Status Transitions
 
-**Trigger:** Manual `workflow_dispatch` only
+### Valid Transitions
 
-**Features:**
+```
+backlog → ready, development, defect
+ready → development, backlog
+development → review, qa, defect, backlog
+review → qa, development, defect
+qa → done, defect, development, backlog
+defect → development, backlog
+done → (any - for reopening)
+```
 
-- **Dry-run mode:** Preview changes without applying them
-- **Direction control:** Sync one-way or bidirectionally
-  - `labels-to-project`: Update project Status based on labels
-  - `project-to-labels`: Update labels based on project Status
-  - `both`: Full bidirectional sync
+### Common Workflows
 
-**Use cases:**
+**Happy Path:**
 
-- Initial setup after adding workflows
-- Fixing inconsistencies after manual changes
-- Testing sync logic before production use
+```
+backlog → ready → development → review → qa → done
+```
 
-**How to use:**
+**Quick Fix:**
 
-1. Go to Actions tab → "Manual Full Sync"
-2. Click "Run workflow"
-3. Select options:
-   - Dry run: `true` (preview) or `false` (apply)
-   - Direction: `both`, `labels-to-project`, or `project-to-labels`
-4. View detailed logs of all changes
+```
+backlog → development → qa → done
+```
 
----
+**Bug from QA:**
 
-## 🗺️ Status Mapping
+```
+qa → defect → development → review → qa → done
+```
 
-### Label ↔ Status Field
-
-| GitHub Label         | Project Status Field | Option ID  |
-| -------------------- | -------------------- | ---------- |
-| `status:backlog`     | Backlog              | `8b99bfa8` |
-| `status:ready`       | Ready                | `f75ad846` |
-| `status:development` | Development          | `47fc9ee4` |
-| `status:review`      | Review               | `c5e8bce6` |
-| `status:qa`          | QA                   | `33f744ff` |
-| `status:defect`      | Defect               | `9b5ee227` |
-| `status:done`        | Done                 | `98236657` |
+**See [TRANSITION-RULES.md](./TRANSITION-RULES.md) for complete state machine diagram.**
 
 ---
 
 ## 🔧 Configuration
 
-### Environment Variables
+### Hardcoded Values
 
-All workflows use these hardcoded values:
+All workflows use:
 
 ```yaml
-PROJECT_NUMBER: 9 # FulgensUI project
-PROJECT_OWNER: "0xbaitan" # Project owner (user account)
-REPO_OWNER: "0xbaitan" # Repository owner
-REPO_NAME: "FulgensUI" # Repository name
-STATUS_FIELD_ID: "PVTSSF_lAHOAeQxRM4BQVimzg-fIIo" # Status field ID
+REPO_OWNER: "0xbaitan"
+REPO_NAME: "FulgensUI"
 ```
 
 ### Required Permissions
 
-Workflows need these GitHub Actions permissions (configured in workflow files):
-
 ```yaml
 permissions:
-  issues: write # Add/remove labels
-  repository-projects: write # Update project items
-  contents: read # Read repository
+  issues: write # Add/remove labels, close/reopen issues
 ```
 
 **Repository Settings:**
 
-- Go to: Settings → Actions → General → Workflow permissions
+- Settings → Actions → General → Workflow permissions
 - Set to: **"Read and write permissions"** ✅
 
 ---
 
 ## 🧪 Testing
 
-### Test 1: Label → Project (Instant Sync)
+### Test 1: Status Label Enforcement
 
-1. Open issue #4 (or any issue in project)
+1. Open any issue
 2. Add label `status:development`
-3. Go to Actions tab → "Sync Label to Project Status"
-4. Wait ~10-30 seconds for workflow to complete
-5. Check Project #9 board → Issue should be in "Development" column
+3. Add label `status:done` (invalid transition)
+4. Check Actions tab → "Enforce Single Status Label"
+5. Verify error comment posted
+6. Verify `status:done` was removed
 
-**Expected:** ✅ Instant sync (<30 seconds)
-
----
-
-### Test 2: Project → Label (Scheduled Sync)
-
-1. Open Project #9 board
-2. Drag issue #4 from "Backlog" to "Review"
-3. Wait up to 15 minutes (or manually trigger "Sync Project Status to Labels")
-4. Check issue #4 labels
-5. Verify `status:backlog` removed, `status:review` added
-
-**Expected:** ✅ Sync within 15 minutes (or instant if manually triggered)
+**Expected:** ❌ Invalid transition blocked with error comment
 
 ---
 
-### Test 3: Manual Full Sync (Dry Run)
+### Test 2: Priority Label Enforcement
 
-1. Go to Actions → "Manual Full Sync"
-2. Click "Run workflow"
-3. Set:
-   - Dry run: `true`
-   - Direction: `both`
-4. View logs to see what changes would be made
-5. Run again with dry_run: `false` to apply
+1. Open any issue
+2. Add label `priority:must-have`
+3. Add label `priority:could-have`
+4. Check Actions tab → "Enforce Single Priority Label"
+5. Verify only `priority:could-have` remains
 
-**Expected:** ✅ Preview of all sync operations without applying changes
+**Expected:** ✅ Old priority removed, new priority kept
+
+---
+
+### Test 3: Auto-Label New Issues
+
+1. Create new issue
+2. Check Actions tab → "Auto-Label New Issues"
+3. Verify `status:backlog` was added automatically
+
+**Expected:** ✅ New issue has `status:backlog`
+
+---
+
+### Test 4: Auto-Close on Done
+
+1. Open any issue
+2. Add label `status:done`
+3. Check Actions tab → "Auto-Close Done Issues"
+4. Verify issue is closed
+
+**Expected:** ✅ Issue automatically closed
+
+---
+
+### Test 5: Auto-Reopen to Backlog
+
+1. Close any issue with `status:done`
+2. Reopen the issue
+3. Check Actions tab → "Auto-Reopen to Backlog"
+4. Verify `status:backlog` was added
+
+**Expected:** ✅ Issue reset to `status:backlog`
+
+---
+
+### Test 6: Daily Cleanup
+
+1. Manually add multiple status labels to an issue
+2. Go to Actions → "Cleanup Labels" → "Run workflow"
+3. Check issue - should have only one status label
+4. Verify cleanup comment was added
+
+**Expected:** ✅ Violations fixed, comment added
 
 ---
 
 ## 📊 Workflow Logs
 
-Each workflow provides detailed logs:
-
-### Success Log Example:
+### Success Log Example (Status Enforcement):
 
 ```
-=== Sync Label to Project - Summary ===
-Issue: #4
-Label: status:development
-Action: labeled
-Skipped: false
-Status: success
-✅ Successfully updated Status field for issue #4
+Current labels: status:backlog, status:ready
+Triggered by label: status:ready
+Previous status: status:backlog
+New status: status:ready
+Transition: backlog → ready
+✅ Transition is valid
+Removing label: status:backlog
+Status label enforcement complete
 ```
 
-### Scheduled Sync Log Example:
+### Error Log Example (Invalid Transition):
 
 ```
-=== Sync Summary ===
-Items processed: 3
-Changes made: 1
-Items already in sync: 2
+Current labels: status:backlog
+Triggered by label: status:done
+Previous status: status:backlog
+New status: status:done
+Transition: backlog → done
+❌ Transition is INVALID
+Valid transitions from backlog: ready, development, defect
+Removing invalid label: status:done
+```
 
-Issue #4: 'status:backlog' → 'status:review'
-  ✅ Synced issue #4
+### Cleanup Log Example:
+
+```
+Starting daily label cleanup...
+Found 12 open issues to check
+
+Issue #4: status:backlog, status:ready, status:done
+  ⚠️  Multiple status labels
+  ❌ Removed: status:ready
+  ❌ Removed: status:done
+  ✅ Issue #4 fixed
+
+=== CLEANUP SUMMARY ===
+Total issues checked: 12
+Issues fixed: 3
+Total violations corrected: 5
+Clean issues: 9
 ```
 
 ---
 
 ## ⚠️ Troubleshooting
 
-### Issue 1: "Issue not in project #9"
-
-**Cause:** Issue hasn't been added to the project board
-
-**Solution:**
-
-1. Open Project #9
-2. Click "+ Add item"
-3. Search for issue and add it
-4. Try triggering workflow again
-
----
-
-### Issue 2: "Error updating project" (GraphQL mutation failed)
-
-**Cause:** Missing permissions or invalid field IDs
-
-**Solution:**
-
-1. Check repo settings: Actions → Workflow permissions → "Read and write"
-2. Verify project still exists: `gh project view 9 --owner 0xbaitan`
-3. Verify Status field ID hasn't changed (rare, but possible)
-
----
-
-### Issue 3: Scheduled sync not running
-
-**Cause:** GitHub Actions may delay scheduled workflows
-
-**Solution:**
-
-1. Trigger manually: Actions → "Sync Project Status to Labels" → "Run workflow"
-2. Check if workflow is disabled: Actions → Workflow → Enable if disabled
-3. Note: Scheduled workflows may have 3-10 minute delays on GitHub's infrastructure
-
----
-
-### Issue 4: Label added but project not updating
+### Issue 1: Label added but not enforced
 
 **Cause:** Workflow may have failed or been skipped
 
 **Solution:**
 
 1. Check Actions tab for failed runs
-2. View workflow logs for error messages
-3. Common issues:
-   - Label typo (must be exactly `status:backlog`, not `Status:Backlog`)
-   - Issue not in project
-   - Permissions issue
+2. View workflow logs for errors
+3. Verify label name is exact (e.g., `status:backlog`, not `Status:Backlog`)
+
+---
+
+### Issue 2: Invalid transition not blocked
+
+**Cause:** Transition rules may need updating
+
+**Solution:**
+
+1. Check [TRANSITION-RULES.md](./TRANSITION-RULES.md) for current rules
+2. Verify `TRANSITION_RULES` object in `enforce-single-status.yml`
+3. Open issue if rules are incorrect
+
+---
+
+### Issue 3: Cleanup not running
+
+**Cause:** Scheduled workflows may be delayed by GitHub
+
+**Solution:**
+
+1. Trigger manually: Actions → "Cleanup Labels" → "Run workflow"
+2. Check if workflow is disabled: Actions → Enable if needed
+3. Note: Cron jobs may have 3-10 minute delays
+
+---
+
+### Issue 4: Multiple labels still present after enforcement
+
+**Cause:** Race condition or workflow failure
+
+**Solution:**
+
+1. Wait for daily cleanup (00:00 GMT)
+2. Or manually trigger cleanup workflow
+3. Or manually remove extra labels
 
 ---
 
 ## 🔍 Advanced Usage
 
-### Trigger Manual Sync via GitHub CLI
+### Trigger Cleanup via GitHub CLI
 
 ```bash
-# Trigger project-to-label sync
-gh workflow run sync-project-to-label.yml
+# Trigger cleanup immediately
+gh workflow run cleanup-labels.yml
 
-# Trigger full sync with options (dry run)
-gh workflow run manual-sync-all.yml \
-  -f dry_run=true \
-  -f direction=both
-
-# Trigger full sync (live mode, project to labels only)
-gh workflow run manual-sync-all.yml \
-  -f dry_run=false \
-  -f direction=project-to-labels
-```
-
-### View Recent Workflow Runs
-
-```bash
-# List recent runs
-gh run list --workflow=sync-label-to-project.yml --limit 5
+# View recent cleanup runs
+gh run list --workflow=cleanup-labels.yml --limit 5
 
 # View specific run logs
 gh run view <run-id> --log
 ```
 
-### Disable Scheduled Sync Temporarily
+### Disable Daily Cleanup Temporarily
 
-If you need to pause scheduled syncs:
-
-1. Edit `.github/workflows/sync-project-to-label.yml`
-2. Comment out the schedule trigger:
+1. Edit `.github/workflows/cleanup-labels.yml`
+2. Comment out schedule trigger:
    ```yaml
    on:
      # schedule:
-     #   - cron: '*/15 * * * *'
+     #   - cron: '0 0 * * *'
      workflow_dispatch: # Keep manual trigger
    ```
 3. Commit and push
 
+### Update Transition Rules
+
+1. Edit `.github/workflows/enforce-single-status.yml`
+2. Update `TRANSITION_RULES` object (~line 50):
+   ```javascript
+   const TRANSITION_RULES = {
+     backlog: ["ready", "development", "defect"],
+     // ... add/remove transitions
+   };
+   ```
+3. Update [TRANSITION-RULES.md](./TRANSITION-RULES.md) to match
+4. Test with sample issues
+
 ---
 
-## 🚀 Future Enhancements
+## 🚀 Manual Project Sync
 
-Potential improvements:
+**Note:** Project #9 board is optional. Labels are the source of truth.
 
-1. **Priority field sync:** Extend to `priority:*` labels
-2. **Webhook-based sync:** Use GitHub Apps for instant project→label sync (requires org)
-3. **Multi-project support:** Sync across multiple projects
-4. **Custom field mapping:** Support other custom fields (Sprint, Issue Type, etc.)
-5. **Slack notifications:** Alert team when sync operations occur
+To manually sync labels to the project board, use:
+
+```bash
+/sync-project
+```
+
+This is a **one-way sync** (labels → project) implemented as an OpenCode command.
+
+See `.opencode/commands/sync-project.md` for details.
 
 ---
 
 ## 📝 Maintenance
 
-### Updating Status Field Options
+### Adding New Labels
 
-If you add/remove/rename Status field options:
+1. Create labels in GitHub: Settings → Labels
+2. Update workflow files to include new labels
+3. Update documentation ([LABEL-AUTOMATION.md](./LABEL-AUTOMATION.md), [TRANSITION-RULES.md](./TRANSITION-RULES.md))
+4. Test with sample issues
 
-1. Get new option IDs:
+### Removing Old Workflows
 
-   ```bash
-   gh project field-list 9 --owner 0xbaitan --format json | jq '.fields[] | select(.name=="Status")'
-   ```
+The following workflows have been deprecated:
 
-2. Update mappings in all three workflow files:
-   - `sync-label-to-project.yml` (line ~40)
-   - `sync-project-to-label.yml` (line ~75)
-   - `manual-sync-all.yml` (line ~130, ~220)
+- ~~`sync-label-to-project.yml`~~ (197 lines) - Replaced by label-only system
+- ~~`sync-project-to-label.yml`~~ (219 lines) - Replaced by label-only system
+- ~~`manual-sync-all.yml`~~ (294 lines) - Replaced by label-only system
 
-3. Update this README's mapping table
-
-### Updating Project ID/Number
-
-If you move to a different project:
-
-1. Get project number:
-
-   ```bash
-   gh project list --owner 0xbaitan
-   ```
-
-2. Update `PROJECT_NUMBER` in all workflow files
-
-3. Get Status field ID:
-
-   ```bash
-   gh project field-list <project-number> --owner 0xbaitan --format json
-   ```
-
-4. Update `STATUS_FIELD_ID` in workflow files
+These will be deleted after confirming new system works correctly.
 
 ---
 
 ## 📚 References
 
 - [GitHub Actions: Workflow syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions)
-- [GitHub GraphQL API: Projects V2](https://docs.github.com/en/graphql/reference/objects#projectv2)
 - [GitHub REST API: Issues](https://docs.github.com/en/rest/issues)
-- [GitHub CLI: Projects](https://cli.github.com/manual/gh_project)
+- [Conventional Commits](https://www.conventionalcommits.org/)
+- [LABEL-AUTOMATION.md](./LABEL-AUTOMATION.md) - Full user guide
+- [TRANSITION-RULES.md](./TRANSITION-RULES.md) - State machine diagram
 
 ---
 

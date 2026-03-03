@@ -1,0 +1,109 @@
+name: Enforce Single Type Label
+
+# Ensures each issue has only ONE type label
+# Type labels: type:feat, type:fix, type:docs, type:refactor, type:perf, type:build,
+#              type:test, type:ci, type:revert, type:chore, type:style
+# No transition validation (any-to-any allowed)
+# Note: issue:* labels (bug, story, epic, task, item) are separate and NOT mutually exclusive with type labels
+
+on:
+  issues:
+    types: [labeled, reopened]
+
+permissions:
+  issues: write
+
+jobs:
+  enforce-single-type:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce Single Type Label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Get current labels
+            const { data: issue } = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number
+            });
+
+            const labels = issue.labels.map(l => l.name);
+            console.log(`Current labels: ${labels.join(', ')}`);
+
+            // Define type labels (based on Conventional Commits)
+            const typeLabels = [
+              'type:feat',
+              'type:fix',
+              'type:docs',
+              'type:refactor',
+              'type:perf',
+              'type:build',
+              'type:test',
+              'type:ci',
+              'type:revert',
+              'type:chore',
+              'type:style'
+            ];
+
+            // Find all type labels on the issue
+            const currentTypeLabels = labels.filter(l => typeLabels.includes(l));
+            console.log(`Type labels found: ${currentTypeLabels.join(', ')}`);
+
+            // If multiple type labels exist, keep only the most recently added one
+            if (currentTypeLabels.length > 1) {
+              console.log('Multiple type labels detected. Enforcing mutual exclusion...');
+              
+              // Determine which label was just added (from the labeled event)
+              const triggeredLabel = context.payload.label?.name;
+              console.log(`Triggered by label: ${triggeredLabel}`);
+              
+              let labelToKeep;
+              if (triggeredLabel && typeLabels.includes(triggeredLabel)) {
+                // Keep the newly added label
+                labelToKeep = triggeredLabel;
+              } else {
+                // Fallback: Keep the first type label (shouldn't happen in normal flow)
+                labelToKeep = currentTypeLabels[0];
+              }
+              
+              // Remove all type labels except the one to keep
+              const labelsToRemove = currentTypeLabels.filter(l => l !== labelToKeep);
+              
+              for (const label of labelsToRemove) {
+                console.log(`Removing label: ${label}`);
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number,
+                    name: label
+                  });
+                } catch (error) {
+                  console.error(`Failed to remove label ${label}:`, error.message);
+                }
+              }
+              
+              // Add informative comment
+              const comment = `🏷️ **Type Label Enforcement**\n\n` +
+                `Only one type label is allowed per issue.\n\n` +
+                `✅ Kept: \`${labelToKeep}\`\n` +
+                `❌ Removed: ${labelsToRemove.map(l => `\`${l}\``).join(', ')}\n\n` +
+                `*Type labels: feat, fix, docs, refactor, perf, build, test, ci, revert, chore, style*\n` +
+                `*Note: issue:* labels (bug, story, epic, task, item) are separate and can coexist with type labels.`;
+              
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: comment
+              });
+              
+              console.log('Type label enforcement complete.');
+            } else {
+              console.log('No type label conflicts detected.');
+            }

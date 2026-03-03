@@ -1,173 +1,378 @@
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    GitHub Actions: Label ↔ Project Sync                 │
+│                 GitHub Actions: Label Automation System                 │
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  WORKFLOW 1: Instant Label → Project Sync                               │
-│  File: sync-label-to-project.yml                                        │
+│  WORKFLOW 1: Enforce Single Status Label (Instant)                      │
+│  File: enforce-single-status.yml                                        │
 └─────────────────────────────────────────────────────────────────────────┘
 
-    User Action: Add/Remove status:* label
+    User Action: Add status:* label
            ↓
     ┌──────────────────┐
-    │ GitHub Event:    │  Trigger: issues.labeled / issues.unlabeled
+    │ GitHub Event:    │  Trigger: issues.labeled
     │ "issues"         │
     └──────────────────┘
            ↓
     ┌──────────────────┐
-    │ Validate Label   │  Check if label starts with "status:"
-    │                  │  → status:development ✅
-    └──────────────────┘  → priority:high ❌ (skip)
-           ↓
-    ┌──────────────────┐
-    │ Find Issue in    │  GraphQL Query:
-    │ Project #9       │  - Get issue's projectItems
-    └──────────────────┘  - Filter to project #9
-           ↓
-    ┌──────────────────┐
-    │ Map Label to     │  status:backlog → 8b99bfa8 (Backlog)
-    │ Status Option ID │  status:development → 47fc9ee4 (Development)
-    └──────────────────┘  status:review → c5e8bce6 (Review)
-           ↓
-    ┌──────────────────┐
-    │ Update Project   │  GraphQL Mutation:
-    │ Status Field     │  updateProjectV2ItemFieldValue
+    │ Get Current      │  REST API GET:
+    │ Labels           │  /repos/.../issues/4
     └──────────────────┘
            ↓
-    ✅ Project board updates in <30 seconds
+    ┌──────────────────────────────────┐
+    │ Check for Multiple Status Labels │
+    │ - status:backlog                 │
+    │ - status:done (just added)       │
+    │ → Found 2 status labels!         │
+    └──────────────────────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Validate         │  Transition: backlog → done
+    │ Transition       │  Valid next states: ready, development, defect
+    └──────────────────┘  ❌ INVALID!
+           ↓
+    ┌──────────────────┐
+    │ Remove Invalid   │  REST API DELETE:
+    │ Label            │  /repos/.../issues/4/labels/status:done
+    └──────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Post Error       │  REST API POST:
+    │ Comment          │  "Cannot go from backlog → done.
+    └──────────────────┘   Valid next: ready, development, defect"
+           ↓
+    ✅ Only one valid status label remains (<30 seconds)
 
 
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  WORKFLOW 2: Scheduled Project → Label Sync                             │
-│  File: sync-project-to-label.yml                                        │
+│  WORKFLOW 2: Enforce Single Priority/Type Label (Instant)               │
+│  Files: enforce-single-priority.yml, enforce-single-type.yml            │
 └─────────────────────────────────────────────────────────────────────────┘
 
-    Scheduled: Every 15 minutes (cron: */15 * * * *)
+    User Action: Add priority:* or type:* label
            ↓
     ┌──────────────────┐
-    │ Fetch All Items  │  GraphQL Query:
-    │ from Project #9  │  - Get all items
-    └──────────────────┘  - Include Status field & labels
-           ↓
-    ┌──────────────────┐
-    │ For Each Issue:  │  Loop through all project items
+    │ GitHub Event:    │  Trigger: issues.labeled
+    │ "issues"         │
     └──────────────────┘
            ↓
-    ┌──────────────────────────────────────┐
-    │ 1. Get Status field: "Development"   │
-    │ 2. Get current labels: status:backlog│
-    │ 3. Compare:                          │
-    │    Expected: status:development      │
-    │    Current:  status:backlog          │
-    │    → Mismatch! ⚠️                    │
-    └──────────────────────────────────────┘
+    ┌──────────────────┐
+    │ Get Current      │  REST API GET:
+    │ Labels           │  /repos/.../issues/4
+    └──────────────────┘
+           ↓
+    ┌──────────────────────────────────┐
+    │ Check for Multiple Labels        │
+    │ - priority:must-have             │
+    │ - priority:could-have (new)      │
+    │ → Found 2 priority labels!       │
+    └──────────────────────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Keep Newest      │  Keep: priority:could-have
+    │ Remove Old       │  Remove: priority:must-have
+    └──────────────────┘  (No transition validation)
            ↓
     ┌──────────────────┐
     │ Remove Old Label │  REST API DELETE:
-    │ status:backlog   │  /repos/.../issues/4/labels/status:backlog
+    │                  │  /repos/.../issues/4/labels/priority:must-have
     └──────────────────┘
            ↓
     ┌──────────────────┐
-    │ Add New Label    │  REST API POST:
-    │ status:development│ /repos/.../issues/4/labels
-    └──────────────────┘
+    │ Post Informative │  REST API POST:
+    │ Comment          │  "✅ Kept priority:could-have
+    └──────────────────┘   ❌ Removed priority:must-have"
            ↓
-    ✅ Labels sync within 15 minutes
+    ✅ Only one label in category (<30 seconds)
 
 
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  WORKFLOW 3: Manual Full Sync (with Dry-Run)                            │
-│  File: manual-sync-all.yml                                              │
+│  WORKFLOW 3: Auto-Label New Issues                                      │
+│  File: auto-label-new-issues.yml                                        │
 └─────────────────────────────────────────────────────────────────────────┘
 
-    Trigger: Manual (workflow_dispatch)
-           ↓
-    ┌──────────────────────────────────┐
-    │ Input Parameters:                │
-    │ - dry_run: true/false            │
-    │ - direction: both/labels/project │
-    └──────────────────────────────────┘
+    New Issue Created
            ↓
     ┌──────────────────┐
-    │ Fetch All Items  │  Same as Workflow 2
-    │ from Project #9  │
+    │ GitHub Event:    │  Trigger: issues.opened
+    │ "issues"         │
     └──────────────────┘
            ↓
-    ╔══════════════════════════════════╗
-    ║  PHASE 1: Project → Labels       ║
-    ╚══════════════════════════════════╝
+    ┌──────────────────┐
+    │ Get Current      │  REST API GET:
+    │ Labels           │  /repos/.../issues/5
+    └──────────────────┘
            ↓
-    ┌──────────────────────────────────┐
-    │ For each mismatch:               │
-    │ - Log planned change             │
-    │ - If dry_run=false: Apply change │
-    │ - If dry_run=true: Skip & log    │
-    └──────────────────────────────────┘
+    ┌──────────────────┐
+    │ Check for        │  status:* labels present?
+    │ Status Label     │  → No
+    └──────────────────┘
            ↓
-    ╔══════════════════════════════════╗
-    ║  PHASE 2: Labels → Project       ║
-    ╚══════════════════════════════════╝
+    ┌──────────────────┐
+    │ Add Backlog      │  REST API POST:
+    │ Label            │  /repos/.../issues/5/labels
+    └──────────────────┘  labels: ["status:backlog"]
            ↓
-    ┌──────────────────────────────────┐
-    │ For each mismatch:               │
-    │ - Log planned change             │
-    │ - If dry_run=false: Apply change │
-    │ - If dry_run=true: Skip & log    │
-    └──────────────────────────────────┘
+    ✅ New issue enters workflow (<30 seconds)
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  WORKFLOW 4: Auto-Close Done Issues                                     │
+│  File: auto-close-done.yml                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    User Action: Add status:done label
+           ↓
+    ┌──────────────────┐
+    │ GitHub Event:    │  Trigger: issues.labeled
+    │ "issues"         │  Condition: label.name == "status:done"
+    └──────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Check Issue      │  REST API GET:
+    │ State            │  /repos/.../issues/4
+    └──────────────────┘  state: open
+           ↓
+    ┌──────────────────┐
+    │ Close Issue      │  REST API PATCH:
+    │                  │  state: "closed"
+    └──────────────────┘  state_reason: "completed"
+           ↓
+    ┌──────────────────┐
+    │ Post Comment     │  REST API POST:
+    │                  │  "✅ Issue Completed
+    └──────────────────┘   Automatically closed (status:done)"
+           ↓
+    ✅ Issue closed (<30 seconds)
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  WORKFLOW 5: Auto-Reopen to Backlog                                     │
+│  File: auto-reopen-backlog.yml                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    User Action: Reopen closed issue
+           ↓
+    ┌──────────────────┐
+    │ GitHub Event:    │  Trigger: issues.reopened
+    │ "issues"         │
+    └──────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Get Current      │  REST API GET:
+    │ Labels           │  /repos/.../issues/4
+    └──────────────────┘  Found: status:done
+           ↓
+    ┌──────────────────┐
+    │ Remove Old       │  REST API DELETE:
+    │ Status Label     │  /repos/.../issues/4/labels/status:done
+    └──────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Add Backlog      │  REST API POST:
+    │ Label            │  /repos/.../issues/4/labels
+    └──────────────────┘  labels: ["status:backlog"]
+           ↓
+    ┌──────────────────┐
+    │ Post Comment     │  REST API POST:
+    │                  │  "🔄 Issue Reopened
+    └──────────────────┘   Reset to status:backlog"
+           ↓
+    ✅ Issue re-enters workflow (<30 seconds)
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  WORKFLOW 6: Daily Cleanup                                              │
+│  File: cleanup-labels.yml                                               │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Scheduled: Daily at 00:00 GMT (cron: 0 0 * * *)
+           ↓
+    ┌──────────────────┐
+    │ Fetch All Open   │  REST API GET (paginated):
+    │ Issues           │  /repos/.../issues?state=open
+    └──────────────────┘
+           ↓
+    ┌──────────────────────────────────────┐
+    │ For Each Issue:                      │
+    │ 1. Check for multiple status labels  │
+    │ 2. Check for multiple priority labels│
+    │ 3. Check for multiple type labels    │
+    │ 4. Check for missing status label    │
+    └──────────────────────────────────────┘
+           ↓
+    ┌──────────────────────────────────────┐
+    │ Issue #4:                            │
+    │ - status:backlog ✅ (keep first)     │
+    │ - status:ready ❌ (remove)           │
+    │ - status:done ❌ (remove)            │
+    └──────────────────────────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Remove Extra     │  REST API DELETE (for each):
+    │ Labels           │  /repos/.../issues/4/labels/{label}
+    └──────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Post Cleanup     │  REST API POST:
+    │ Comment          │  "🧹 Daily Label Cleanup
+    └──────────────────┘   Fixed violations: ..."
            ↓
     ┌──────────────────────────────────┐
     │ Summary Report:                  │
-    │ - Items processed: 3             │
-    │ - Changes made/planned: 1        │
-    │ - Already in sync: 2             │
+    │ - Issues checked: 12             │
+    │ - Issues fixed: 3                │
+    │ - Violations corrected: 5        │
+    │ - Clean issues: 9                │
     └──────────────────────────────────┘
            ↓
-    ✅ Complete
+    ✅ All issues clean (<5 minutes)
 
 
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  STATUS MAPPING                                                          │
+│  STATUS TRANSITION RULES                                                 │
 └─────────────────────────────────────────────────────────────────────────┘
 
-    Label               Project Status      Option ID
-    ─────────────────   ────────────────    ──────────
-    status:backlog   ↔  Backlog            8b99bfa8
-    status:ready     ↔  Ready              f75ad846
-    status:development↔ Development        47fc9ee4
-    status:review    ↔  Review             c5e8bce6
-    status:qa        ↔  QA                 33f744ff
-    status:defect    ↔  Defect             9b5ee227
-    status:done      ↔  Done               98236657
+    Label State Machine:
+    
+         backlog
+         ├─→ ready ✅
+         ├─→ development ✅
+         └─→ defect ✅
+    
+         ready
+         ├─→ development ✅
+         └─→ backlog ✅
+    
+         development
+         ├─→ review ✅
+         ├─→ qa ✅
+         ├─→ defect ✅
+         └─→ backlog ✅
+    
+         review
+         ├─→ qa ✅
+         ├─→ development ✅
+         └─→ defect ✅
+    
+         qa
+         ├─→ done ✅
+         ├─→ defect ✅
+         ├─→ development ✅
+         └─→ backlog ✅
+    
+         defect
+         ├─→ development ✅
+         └─→ backlog ✅
+    
+         done
+         └─→ (any - on reopen) ✅
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  LABEL CATEGORIES                                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Status Labels (Mutually Exclusive):
+    ────────────────────────────────────
+    status:backlog
+    status:ready
+    status:development
+    status:review
+    status:qa
+    status:defect
+    status:done
+
+    Priority Labels (Mutually Exclusive):
+    ─────────────────────────────────────
+    priority:must-have
+    priority:should-have
+    priority:could-have
+    priority:won't-have
+
+    Type Labels (Mutually Exclusive):
+    ─────────────────────────────────
+    type:feat
+    type:fix
+    type:docs
+    type:refactor
+    type:perf
+    type:build
+    type:test
+    type:ci
+    type:revert
+    type:chore
+    type:style
+
+    Issue Labels (NOT Mutually Exclusive):
+    ──────────────────────────────────────
+    issue:bug
+    issue:story
+    issue:epic
+    issue:task
+    issue:item
 
 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  EXAMPLE USAGE SCENARIOS                                                 │
 └─────────────────────────────────────────────────────────────────────────┘
 
-┌─ Scenario 1: Developer adds label ────────────────────────────────────┐
+┌─ Scenario 1: Developer adds valid status label ───────────────────────┐
 │                                                                         │
 │  1. Developer adds "status:development" to issue #4                   │
+│     (current: status:ready)                                           │
 │  2. Workflow 1 triggers instantly                                     │
-│  3. Issue moves to "Development" column in Project #9                 │
-│  4. Time: < 30 seconds                                                │
+│  3. Validates transition: ready → development ✅                      │
+│  4. Removes status:ready, keeps status:development                    │
+│  5. Time: < 30 seconds                                                │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 
-┌─ Scenario 2: PM drags card on board ──────────────────────────────────┐
+┌─ Scenario 2: Developer adds invalid status label ─────────────────────┐
 │                                                                         │
-│  1. PM drags issue #4 from "Backlog" to "Review" on project board     │
-│  2. Workflow 2 runs on next schedule (up to 15 min)                   │
-│  3. Label "status:backlog" removed, "status:review" added             │
-│  4. Time: < 15 minutes (or instant with manual trigger)               │
+│  1. Developer adds "status:done" to issue #4                          │
+│     (current: status:backlog)                                         │
+│  2. Workflow 1 triggers instantly                                     │
+│  3. Validates transition: backlog → done ❌                           │
+│  4. Removes status:done, keeps status:backlog                         │
+│  5. Posts error: "Cannot go from backlog → done.                      │
+│     Valid next: ready, development, defect"                           │
+│  6. Time: < 30 seconds                                                │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 
-┌─ Scenario 3: Initial setup / fixing inconsistencies ───────────────────┐
+┌─ Scenario 3: Issue completed and closed ───────────────────────────────┐
 │                                                                         │
-│  1. Run "Manual Full Sync" with dry_run=true                          │
-│  2. Review logs to see what would change                              │
-│  3. Run again with dry_run=false, direction=both                      │
-│  4. All issues now have correct labels matching project status        │
+│  1. Developer adds "status:done" to issue #4                          │
+│     (current: status:qa - valid transition)                           │
+│  2. Workflow 1 validates and keeps status:done                        │
+│  3. Workflow 4 triggers on status:done label                          │
+│  4. Issue automatically closed with state_reason: "completed"         │
+│  5. Comment posted: "✅ Issue Completed"                              │
+│  6. Time: < 30 seconds                                                │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ Scenario 4: Issue reopened after completion ──────────────────────────┐
+│                                                                         │
+│  1. User reopens closed issue #4 (had status:done)                    │
+│  2. Workflow 5 triggers instantly                                     │
+│  3. Removes status:done, adds status:backlog                          │
+│  4. Comment posted: "🔄 Issue Reopened - Reset to status:backlog"    │
+│  5. Issue re-enters workflow from start                               │
+│  6. Time: < 30 seconds                                                │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ Scenario 5: Daily cleanup fixes violations ───────────────────────────┐
+│                                                                         │
+│  1. Cron fires at 00:00 GMT                                           │
+│  2. Scans all 50 open issues                                          │
+│  3. Finds issue #4 with: status:backlog, status:ready, status:done   │
+│  4. Keeps first (status:backlog), removes others                      │
+│  5. Posts cleanup comment                                             │
+│  6. Summary: 50 checked, 3 fixed, 47 clean                            │
+│  7. Time: < 5 minutes                                                 │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 
@@ -181,7 +386,7 @@
     ☑ Read and write permissions  ← MUST BE ENABLED
     ☐ Read repository contents and packages permissions only
     
-    ☑ Allow GitHub Actions to create and approve pull requests (optional)
+    All workflows use: permissions.issues: write
 
 
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -190,8 +395,25 @@
 
     After pushing workflows:
     
-    ☐ Test 1: Add status:development to issue → Check project column
-    ☐ Test 2: Drag issue on board → Wait 15 min → Check labels
-    ☐ Test 3: Run manual sync (dry_run=true) → Review logs
-    ☐ Test 4: Run manual sync (dry_run=false) → Verify changes
-    ☐ Test 5: Check Actions logs for errors/warnings
+    ☐ Test 1: Add valid status transition → Check label enforcement
+    ☐ Test 2: Add invalid status transition → Check error message
+    ☐ Test 3: Add multiple priority labels → Check mutual exclusion
+    ☐ Test 4: Create new issue → Check auto-backlog label
+    ☐ Test 5: Add status:done → Check issue auto-closed
+    ☐ Test 6: Reopen closed issue → Check reset to backlog
+    ☐ Test 7: Trigger cleanup manually → Check violations fixed
+    ☐ Test 8: Check Actions logs for errors/warnings
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  MANUAL PROJECT SYNC (OPTIONAL)                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Labels are the source of truth. Project #9 board is optional.
+    
+    To manually sync labels → project board:
+    
+    /sync-project
+    
+    See: .opencode/commands/sync-project.md
+         scripts/sync-project-manual.ts

@@ -1,0 +1,146 @@
+name: Enforce Single Status Label
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  enforce-status:
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.label.name, 'status:')
+    steps:
+      - name: Get current labels
+        id: get-labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Checking status labels on issue #${{ github.event.issue.number }}"
+
+          # Get all current labels
+          LABELS=$(gh api /repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels --jq '.[].name')
+
+          # Find current status labels (excluding the one just added)
+          CURRENT_STATUS=""
+          for label in $LABELS; do
+            if [[ "$label" =~ ^status: ]] && [[ "$label" != "${{ github.event.label.name }}" ]]; then
+              CURRENT_STATUS="$label"
+              break
+            fi
+          done
+
+          echo "current_status=$CURRENT_STATUS" >> $GITHUB_OUTPUT
+          echo "new_status=${{ github.event.label.name }}" >> $GITHUB_OUTPUT
+
+          if [ -n "$CURRENT_STATUS" ]; then
+            echo "Found existing status: $CURRENT_STATUS"
+          else
+            echo "No existing status label found"
+          fi
+
+      - name: Validate transition
+        id: validate
+        env:
+          CURRENT: ${{ steps.get-labels.outputs.current_status }}
+          NEW: ${{ steps.get-labels.outputs.new_status }}
+        run: |
+          echo "Validating transition: $CURRENT → $NEW"
+
+          # If no current status, any new status is valid (new issue or first label)
+          if [ -z "$CURRENT" ]; then
+            echo "No current status - transition valid"
+            echo "valid=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Define valid transitions
+          declare -A VALID_TRANSITIONS
+          VALID_TRANSITIONS=(
+            ["status:backlog"]="status:ready status:development status:defect"
+            ["status:ready"]="status:development status:backlog"
+            ["status:development"]="status:review status:qa status:defect status:backlog"
+            ["status:review"]="status:qa status:development status:defect"
+            ["status:qa"]="status:done status:defect status:development status:backlog"
+            ["status:defect"]="status:development status:backlog"
+            ["status:done"]="status:backlog status:ready status:development status:review status:qa status:defect"
+          )
+
+          # Get valid transitions for current status
+          VALID="${VALID_TRANSITIONS[$CURRENT]}"
+
+          # Check if new status is in valid list
+          if [[ " $VALID " =~ " $NEW " ]]; then
+            echo "✅ Transition valid: $CURRENT → $NEW"
+            echo "valid=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Transition invalid: $CURRENT → $NEW"
+            echo "Valid transitions from $CURRENT: $VALID"
+            echo "valid=false" >> $GITHUB_OUTPUT
+            echo "valid_next=$VALID" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Block invalid transition
+        if: steps.validate.outputs.valid == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CURRENT="${{ steps.get-labels.outputs.current_status }}"
+          NEW="${{ steps.get-labels.outputs.new_status }}"
+          VALID="${{ steps.validate.outputs.valid_next }}"
+
+          # Extract status names (remove "status:" prefix)
+          CURRENT_NAME="${CURRENT#status:}"
+          NEW_NAME="${NEW#status:}"
+          VALID_NAMES=$(echo "$VALID" | sed 's/status://g')
+
+          echo "Blocking invalid transition and adding comment"
+
+          # Remove the newly added invalid label
+          ENCODED_NEW=$(echo "$NEW" | jq -sRr @uri)
+          gh api --method DELETE \
+            /repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels/$ENCODED_NEW
+
+          # Add comment explaining why
+          gh api --method POST \
+            /repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+            -f body="❌ Cannot go from $CURRENT_NAME → $NEW_NAME. Valid next: $VALID_NAMES"
+
+          echo "Invalid transition blocked"
+
+      - name: Remove other status labels
+        if: steps.validate.outputs.valid == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CURRENT="${{ steps.get-labels.outputs.current_status }}"
+          NEW="${{ steps.get-labels.outputs.new_status }}"
+
+          if [ -z "$CURRENT" ]; then
+            echo "No existing status label to remove"
+            exit 0
+          fi
+
+          echo "Removing old status label: $CURRENT"
+
+          # URL encode the label name
+          ENCODED_CURRENT=$(echo "$CURRENT" | jq -sRr @uri)
+
+          # Remove the old status label
+          gh api --method DELETE \
+            /repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels/$ENCODED_CURRENT
+
+          echo "✅ Kept: $NEW"
+          echo "✅ Removed: $CURRENT"
+
+      - name: Log completion
+        if: always()
+        run: |
+          echo "=== Enforce Single Status - Summary ==="
+          echo "Issue: #${{ github.event.issue.number }}"
+          echo "Previous status: ${{ steps.get-labels.outputs.current_status || 'none' }}"
+          echo "New status: ${{ steps.get-labels.outputs.new_status }}"
+          echo "Transition valid: ${{ steps.validate.outputs.valid }}"
+          echo "Status: ${{ job.status }}"

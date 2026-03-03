@@ -1,0 +1,61 @@
+name: Auto-Close Done Issues
+
+# Automatically closes issues when status:done label is applied
+# This ensures completed work is properly tracked and closed
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write
+
+jobs:
+  auto-close-done:
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'status:done'
+    steps:
+      - name: Close Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Get current issue state
+            const { data: issue } = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number
+            });
+
+            console.log(`Issue #${issue_number} labeled with status:done`);
+            console.log(`Current state: ${issue.state}`);
+
+            if (issue.state === 'open') {
+              // Close the issue
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number,
+                state: 'closed',
+                state_reason: 'completed'
+              });
+              
+              console.log('✅ Issue closed automatically (status:done applied).');
+              
+              // Add informative comment
+              const comment = `✅ **Issue Completed**\n\n` +
+                `This issue has been automatically closed because it was marked as \`status:done\`.\n\n` +
+                `If this was done in error, you can reopen the issue. The status will automatically reset to \`status:backlog\`.`;
+              
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: comment
+              });
+            } else {
+              console.log('Issue is already closed. No action needed.');
+            }
