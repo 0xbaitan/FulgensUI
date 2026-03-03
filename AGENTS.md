@@ -28,22 +28,22 @@ FulgensUI/
 
 ```bash
 # Install dependencies
-npm install
+bun install
 
 # Run all packages in dev mode
-npm run dev
+bun run dev
 
 # Build all packages
-npm run build
+bun run build
 
 # Lint all packages
-npm run lint
+bun run lint
 
 # Test all packages
-npm run test
+bun run test
 
 # Clean all packages
-npm run clean
+bun run clean
 ```
 
 ### Core Package (packages/core)
@@ -52,28 +52,28 @@ npm run clean
 cd packages/core
 
 # Run Vite dev server
-npm run dev
+bun run dev
 
 # Run Storybook (port 6006)
-npm run storybook
+bun run storybook
 
 # Build for production
-npm run build
+bun run build
 
 # Lint with ESLint
-npm run lint
+bun run lint
 
 # Type check with TypeScript
-npm run type-check
+bun run type-check
 
 # Run a single test file
-npx vitest run path/to/testfile.test.ts
+bunx vitest run path/to/testfile.test.ts
 
 # Run tests in watch mode
-npx vitest
+bunx vitest
 
 # Run tests with coverage
-npx vitest run --coverage
+bunx vitest run --coverage
 ```
 
 ## Component Structure
@@ -221,7 +221,7 @@ Run a single test file:
 
 ```bash
 cd packages/core
-npx vitest run src/components/ui/button/__tests__/button.test.tsx
+bunx vitest run src/components/ui/button/__tests__/button.test.tsx
 ```
 
 ### Storybook
@@ -255,14 +255,142 @@ Always run lint and type check before committing:
 
 ```bash
 cd packages/core
-npm run lint
-npm run type-check
+bun run lint
+bun run type-check
 ```
 
 ## CI/CD
 
-- **GitHub Actions**: Runs on push/PR to build core and deploy docsite
+- **GitHub Actions**: Runs on push/PR to build core and deploy docsite using Bun 1.3.6
 - **GitLab CI**: Full pipeline with build, test, and deployment
+
+## Local CI Testing
+
+FulgensUI provides atomic CI scripts that mirror the GitHub Actions pipeline for local testing before commits.
+
+### CI Scripts
+
+All CI scripts use the `ci:` prefix and can be run individually or as a full suite:
+
+#### Individual Scripts
+
+```bash
+# Install dependencies (frozen lockfile, matches CI)
+bun run ci:install
+
+# Generate PandaCSS (required before other tasks)
+bun run ci:panda
+
+# Lint all packages
+bun run ci:lint
+
+# TypeScript type checking
+bun run ci:type-check
+
+# Run tests (fast, no coverage)
+bun run ci:test
+
+# Run tests with coverage (CI behavior)
+bun run ci:test:coverage
+
+# Build all packages
+bun run ci:build
+
+# Build Storybook
+bun run ci:build-storybook
+```
+
+#### Full CI Suite
+
+```bash
+# Run complete CI pipeline locally
+bun run ci:all
+```
+
+This executes all CI steps in order: install → panda → lint → type-check → test with coverage → build → build-storybook.
+
+### Pre-commit Scripts
+
+The pre-commit hook runs a subset of CI checks for faster feedback:
+
+```bash
+# Fast checks (no tests, no coverage)
+bun run pre-commit:checks
+
+# Interactive test runner (prompts on failure)
+bun run pre-commit:test:staged
+```
+
+### Turbo Task Orchestration
+
+CI scripts leverage Turborepo for task orchestration and caching:
+
+**Task Dependency Chain:**
+
+```
+panda (generate PandaCSS)
+  ↓
+  ├→ lint
+  ├→ type-check
+  ├→ test
+  └→ build
+```
+
+All tasks wait for PandaCSS generation to complete before running.
+
+**Turbo Filtering:**
+
+Run tasks only for affected packages:
+
+```bash
+# Test only affected packages
+turbo run test --filter=[affected]
+
+# Build specific package
+turbo run build --filter=@fulgensui/core
+```
+
+### Coverage Thresholds
+
+Test coverage thresholds (enforced in CI only):
+
+- **Lines**: 90%
+- **Branches**: 100%
+- **Functions**: 90%
+- **Statements**: 90%
+
+Pre-commit tests do NOT enforce coverage for speed. Use `bun run ci:test:coverage` to check coverage locally.
+
+### Troubleshooting
+
+**Pre-commit hook too slow?**
+
+Skip the hook temporarily:
+
+```bash
+git commit --no-verify -m "your message"
+```
+
+Or remove `bun run pre-commit:test:staged` from `.husky/pre-commit` to disable tests.
+
+**Tests failing in CI but passing locally?**
+
+Ensure you're using frozen lockfile:
+
+```bash
+rm -rf node_modules bun.lock
+bun install
+bun run ci:all
+```
+
+**Turbo cache issues?**
+
+Clear turbo cache:
+
+```bash
+rm -rf .turbo
+bun run clean
+```
 
 ## Git Hooks & Commit Workflow
 
@@ -270,8 +398,44 @@ npm run type-check
 
 The project uses Husky for Git hooks with the following configuration:
 
-- **pre-commit**: Runs lint-staged to lint staged files before commit
+- **pre-commit**:
+  1. Runs `lint-staged` to format and fix staged files (eslint --fix, prettier)
+  2. Runs `pre-commit:checks` for fast validation (panda, lint, type-check)
+  3. Runs `pre-commit:test:staged` for interactive test runner on affected packages
 - **commit-msg**: Validates commit messages against Conventional Commits format
+
+### Pre-commit Hook Behavior
+
+**What runs:**
+
+1. **lint-staged** (~5-15s): Auto-fixes formatting issues in staged files
+2. **pre-commit:checks** (~10-30s): Validates PandaCSS, linting, TypeScript types
+3. **pre-commit:test:staged** (~10-60s): Runs tests on affected packages only
+
+**If tests fail:**
+
+- Hook prompts: `Tests failed. Continue with commit anyway? [y/N]`
+- Press `y` to commit anyway (useful for WIP commits)
+- Press `n` or Enter to abort commit and fix tests
+
+**Total time:** ~25-105 seconds depending on changes
+
+**Skip the hook:**
+
+```bash
+git commit --no-verify -m "wip: work in progress"
+```
+
+### lint-staged Configuration
+
+Located in `.lintstagedrc`:
+
+```json
+{
+  "*.{ts,tsx}": ["eslint --fix --max-warnings=0"],
+  "*.{json,md,yml,yaml}": ["prettier --write"]
+}
+```
 
 ### Conventional Commits
 
@@ -286,6 +450,7 @@ type(scope): description
 ```
 
 **Types:**
+
 - `feat`: A new feature
 - `fix`: A bug fix
 - `docs`: Documentation only changes
@@ -299,6 +464,7 @@ type(scope): description
 - `revert`: Reverts a previous commit
 
 **Examples:**
+
 ```
 feat(button): add primary variant with hover state
 fix(input): resolve value not updating on change
@@ -312,7 +478,7 @@ The project includes an AI-powered commit agent that helps generate conventional
 **Usage:**
 
 ```bash
-npm run ai-commit
+bun run ai-commit
 ```
 
 **How it works:**
@@ -334,6 +500,7 @@ The agent displays coverage metrics before committing, allowing you to make an i
 **Branch Naming for Issue Tracking:**
 
 Create branches with issue IDs using these patterns:
+
 - `feature/123-add-button`
 - `fix/456-hover-issue`
 - `tasks/789-update-docs`
@@ -346,11 +513,12 @@ When asked to commit changes, the git subagent should:
 2. **Determine scope**: Identify which package/component is affected
 3. **Run tests**: Execute tests for the affected package (or all tests if integration tests needed)
 4. **Discuss coverage**: Review coverage metrics with user - are thresholds met?
-5. **Generate message**: Use `npm run ai-commit` or manually craft a conventional commit
+5. **Generate message**: Use `bun run ai-commit` or manually craft a conventional commit
 6. **Validate format**: Ensure commit follows Conventional Commits specification
 7. **Allow edits**: Give user opportunity to edit the commit message if needed
 
 **Test Scope Selection:**
+
 - Package-scoped changes: Run tests only for that package
 - Integration/breaking changes: Run full test suite
 - Ask user if unsure about required test scope

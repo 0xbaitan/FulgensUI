@@ -1,1 +1,3 @@
 npx lint-staged
+bun run pre-commit:checks
+bun run pre-commit:test:staged
