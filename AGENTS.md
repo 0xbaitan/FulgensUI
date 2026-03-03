@@ -519,6 +519,105 @@ fix(input): resolve value not updating on change
 docs(readme): update installation instructions
 ```
 
+### OpenCode Slash Commands
+
+This repository uses OpenCode custom slash commands for enhanced Git workflows. These are **agent-based workflows** defined in `.opencode/commands/`, not npm scripts.
+
+**Available Commands:**
+
+#### `/prepare-commit` - Prepare Commit with Validation
+
+Prepares a commit by running tests, linting, and generating an AI commit message.
+
+**How it works:**
+
+1. Analyzes staged files and current branch
+2. Extracts issue number from branch name (e.g., `feature/123-name` → `#123`)
+3. Determines commit type (branch prefix → GitHub labels → file analysis)
+4. Runs tests with coverage (scoped to affected packages)
+5. Runs ESLint validation
+6. Generates AI commit message using Ollama (`opencode/big-pickle` model)
+7. Saves message to `.temp/commit-messages/<details>_<timestamp>.txt`
+8. Creates log file in `logs/` directory
+
+**Usage:**
+
+```bash
+/prepare-commit              # Full workflow
+/prepare-commit --dry-run    # Test run without saving files
+```
+
+**Requirements:**
+
+- Ollama running with `opencode/big-pickle` model
+- Staged files ready to commit
+- Optional: GitHub CLI (`gh`) for PR label detection
+
+**Output:**
+
+- Commit message file: `.temp/commit-messages/<issue#>_<type>_<name>_<timestamp>.txt`
+- Log file: `logs/prepare-commit_<status>_<timestamp>.log`
+
+---
+
+#### `/make-commit` - Create Commit from Prepared Message
+
+Creates a Git commit using a prepared message file from `/prepare-commit`.
+
+**How it works:**
+
+1. Lists available message files in `.temp/commit-messages/`
+2. Presents interactive selection (or accepts filename as argument)
+3. Reads and sanitizes message (removes comment lines)
+4. Executes `git commit` with the message
+5. Creates log file with commit details
+6. Archives used message file
+
+**Usage:**
+
+```bash
+/make-commit                                    # Interactive selection
+/make-commit 123_feat_add-button_<timestamp>.txt  # Direct file usage
+```
+
+**Requirements:**
+
+- Prepared message file from `/prepare-commit`
+- Staged files ready to commit
+
+**Output:**
+
+- Commit created with SHA
+- Log file: `logs/make-commit_<status>_<timestamp>.log`
+- Message file archived to `.temp/commit-messages/archive/`
+
+---
+
+#### `/commit` - Quick Commit Workflow
+
+One-step commit workflow combining preparation and commit creation.
+
+See `.opencode/commands/commit.md` for details.
+
+---
+
+**Implementation Details:**
+
+These commands are implemented as **agent workflows** (markdown files in `.opencode/commands/`) that execute bash commands dynamically through the git subagent. They are NOT standalone TypeScript scripts or npm scripts.
+
+**Why Agent Workflows?**
+
+- Dynamic execution based on repository state
+- Interactive prompts and user feedback
+- Flexible logic without rigid scripts
+- Better error handling and recovery
+- Access to full AI agent capabilities
+
+**Related Scripts:**
+
+- `scripts/ai-commit-agent.ts` - Standalone AI commit helper (used by `/prepare-commit`)
+- `bun run ai-commit` - Direct npm script for quick commits (legacy, simpler workflow)
+
 ### AI Commit Agent
 
 The project includes an AI-powered commit agent that helps generate conventional commit messages.
