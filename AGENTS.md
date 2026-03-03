@@ -670,6 +670,269 @@ When asked to commit changes, the git subagent should:
 - Integration/breaking changes: Run full test suite
 - Ask user if unsure about required test scope
 
+## Designer-to-Coder Workflow
+
+FulgensUI uses a two-agent workflow for implementing components from Penpot designs:
+
+### Overview
+
+```mermaid
+graph LR
+    A[Penpot Design] --> B[Designer Agent]
+    B --> C[Planning Document]
+    C --> D[User Review]
+    D --> E{Approved?}
+    E -->|Yes| F[Coder Agent]
+    E -->|No| B
+    F --> G[Implementation]
+    G --> H[CI Validation]
+```
+
+### When to Use
+
+Use the designer agent when:
+
+- You have a component designed in Penpot that needs implementation
+- You want to document design specifications before coding
+- You need design validation (spacing grid, color tokens, accessibility)
+- You want a structured plan for another developer or agent to follow
+
+### Step-by-Step Process
+
+#### 1. Invoke Designer Agent
+
+```
+User: "I designed a Button component in Penpot. Create a plan for implementing it."
+```
+
+The designer agent will:
+
+- Read the Penpot file and extract specifications
+- Map design values to PandaCSS tokens
+- Validate against FulgensUI standards (spacing grid, contrast, states)
+- Export assets (screenshots, measurements)
+- Generate a comprehensive planning document
+
+#### 2. Review Planning Document
+
+The designer agent creates: `specs/<feature-branch>/<component-name>/COMPONENT-PLAN.md`
+
+**Review checklist:**
+
+- [ ] All Penpot measurements accurately captured
+- [ ] Color token mappings are correct
+- [ ] Interactive states (hover/focus/active/disabled) documented
+- [ ] Accessibility contrast ratios meet WCAG AA
+- [ ] Spacing values align to 4px/8px grid
+- [ ] File structure follows FulgensUI conventions
+- [ ] PandaCSS recipe structure is clear and complete
+
+#### 3. Approve or Request Changes
+
+If plan looks good:
+
+```
+User: "Looks good, approve it"
+```
+
+Designer agent updates status to `APPROVED` in the planning document.
+
+If changes needed:
+
+```
+User: "The hover state should use primary.600 instead. Update the plan."
+```
+
+Designer agent revises the document and presents updated version.
+
+#### 4. Implement with Coder Agent
+
+Once approved, hand off to implementation:
+
+```
+User: "Now implement the button based on this plan"
+```
+
+Or invoke a coding agent directly:
+
+```
+User: "Implement the component from specs/feature-123/button/COMPONENT-PLAN.md"
+```
+
+The coder agent will:
+
+1. Read the planning document
+2. Create directory structure
+3. Implement PandaCSS recipe
+4. Implement React component
+5. Write tests (Vitest)
+6. Create Storybook stories
+7. Run CI validation
+8. Mark checklist items complete
+
+### Designer Agent Boundaries
+
+**The designer agent ONLY creates specifications. It does NOT:**
+
+❌ Write TypeScript/React code  
+❌ Run builds, tests, or git operations  
+❌ Modify Penpot files  
+❌ Install dependencies  
+❌ Commit files
+
+**The designer agent DOES:**
+
+✅ Read Penpot files  
+✅ Extract measurements and design tokens  
+✅ Validate designs against standards  
+✅ Export assets (PNG, SVG)  
+✅ Generate markdown planning documents  
+✅ Calculate accessibility metrics  
+✅ Propose new tokens when needed
+
+### Planning Document Structure
+
+Every planning document includes:
+
+1. **Component Overview** - Purpose, Penpot reference
+2. **File Structure** - Exact paths and naming conventions
+3. **Design Tokens** - Color, spacing, typography mappings
+4. **PandaCSS Recipe** - Complete recipe specification
+5. **Component Props** - TypeScript prop types
+6. **Accessibility Requirements** - ARIA, keyboard, contrast validation
+7. **Test Specifications** - Required test cases
+8. **Storybook Stories** - Story definitions and variants
+9. **Design Validation Report** - Spacing, colors, contrast, states, responsive
+10. **Implementation Checklist** - Step-by-step tasks for coder
+11. **Assets** - Exported screenshots and diagrams
+12. **Notes & Decisions** - Design rationale and guidance
+
+### Example Planning Document
+
+See reference example: `specs/examples/button/COMPONENT-PLAN.md`
+
+This shows a complete planning document with:
+
+- Realistic Penpot measurements
+- Color token mappings
+- Validation reports
+- Complete PandaCSS recipe structure
+- Test and Storybook specifications
+
+### Design Validation Rules
+
+The designer agent validates:
+
+**1. Spacing Grid Adherence**
+
+- All spacing must be multiples of 4px
+- Flags non-compliant values (e.g., 13px, 17px)
+
+**2. Color Token Compliance**
+
+- No hard-coded hex colors in recipes
+- All colors must map to `colors.*` tokens
+- Proposes new tokens with justification if needed
+
+**3. Accessibility Contrast**
+
+- Calculates WCAG contrast ratios
+- Requires 4.5:1 for normal text (AA)
+- Requires 3:1 for large text and UI components (AA)
+
+**4. Interactive State Coverage**
+
+- Hover, focus, active, disabled states required
+- Validates all states defined in Penpot
+
+**5. Responsive Design**
+
+- Documents breakpoints if present
+- Notes fixed vs. fluid sizing
+
+### Naming Conventions
+
+**From Penpot to Files (kebab-case):**
+
+- `ButtonPrimary` → `button.tsx`
+- `Input Field` → `input-field.tsx`
+- `DropdownMenu` → `dropdown-menu.tsx`
+
+**Component names (PascalCase):**
+
+- `Button`, `InputField`, `DropdownMenu`
+
+**Recipe files:**
+
+- `button-recipe.ts`, `input-field-recipe.ts`
+
+**Planning documents:**
+
+- `COMPONENT-PLAN.md` (always uppercase)
+
+### File Locations
+
+```
+specs/<feature-branch>/<component-name>/
+├── COMPONENT-PLAN.md          # Comprehensive planning document
+└── assets/
+    ├── <component>-default.png      # Default state screenshot
+    ├── <component>-variants.png     # All variants side-by-side
+    ├── <component>-states.png       # Interactive states
+    └── <component>-measurements.svg # Spacing annotations (optional)
+```
+
+### Invoking the Agents
+
+**Designer Agent:**
+
+```
+@designer Create a planning document for the Button component in Penpot
+```
+
+**Coder Agent (general):**
+
+```
+@general Implement the component from specs/feature-123/button/COMPONENT-PLAN.md
+```
+
+### Integration with Git Workflow
+
+**Recommended branch naming:**
+
+```
+feature/<issue-number>-<component-name>
+```
+
+Example: `feature/123-add-button`
+
+**Workflow:**
+
+1. Create feature branch
+2. Designer agent generates plan in `specs/feature-123-add-button/button/`
+3. Review and approve plan
+4. Coder agent implements component
+5. Run `bun run ci:all` to validate
+6. Commit with conventional commit message
+7. Create PR referencing planning document
+
+### Tips
+
+**For best results:**
+
+- Ensure Penpot designs include all interactive states
+- Use clear, descriptive layer names in Penpot
+- Annotate breakpoints or responsive behavior in Penpot
+- Include hover/focus/active/disabled state frames
+- Use consistent spacing (4px/8px grid)
+
+**Common issues:**
+
+- **Missing states**: Add hover/focus/disabled frames in Penpot
+- **Non-standard spacing**: Designer agent will flag and recommend fixes
+- **Color mismatches**: Designer agent proposes new tokens or maps to existing
+- **Low contrast**: Designer agent calculates ratios and flags WCAG failures
+
 ## Additional Notes
 
 - Uses Bun as package manager (>= 1.3.0)
