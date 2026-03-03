@@ -1,0 +1,197 @@
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    GitHub Actions: Label ↔ Project Sync                 │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  WORKFLOW 1: Instant Label → Project Sync                               │
+│  File: sync-label-to-project.yml                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    User Action: Add/Remove status:* label
+           ↓
+    ┌──────────────────┐
+    │ GitHub Event:    │  Trigger: issues.labeled / issues.unlabeled
+    │ "issues"         │
+    └──────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Validate Label   │  Check if label starts with "status:"
+    │                  │  → status:development ✅
+    └──────────────────┘  → priority:high ❌ (skip)
+           ↓
+    ┌──────────────────┐
+    │ Find Issue in    │  GraphQL Query:
+    │ Project #9       │  - Get issue's projectItems
+    └──────────────────┘  - Filter to project #9
+           ↓
+    ┌──────────────────┐
+    │ Map Label to     │  status:backlog → 8b99bfa8 (Backlog)
+    │ Status Option ID │  status:development → 47fc9ee4 (Development)
+    └──────────────────┘  status:review → c5e8bce6 (Review)
+           ↓
+    ┌──────────────────┐
+    │ Update Project   │  GraphQL Mutation:
+    │ Status Field     │  updateProjectV2ItemFieldValue
+    └──────────────────┘
+           ↓
+    ✅ Project board updates in <30 seconds
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  WORKFLOW 2: Scheduled Project → Label Sync                             │
+│  File: sync-project-to-label.yml                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Scheduled: Every 15 minutes (cron: */15 * * * *)
+           ↓
+    ┌──────────────────┐
+    │ Fetch All Items  │  GraphQL Query:
+    │ from Project #9  │  - Get all items
+    └──────────────────┘  - Include Status field & labels
+           ↓
+    ┌──────────────────┐
+    │ For Each Issue:  │  Loop through all project items
+    └──────────────────┘
+           ↓
+    ┌──────────────────────────────────────┐
+    │ 1. Get Status field: "Development"   │
+    │ 2. Get current labels: status:backlog│
+    │ 3. Compare:                          │
+    │    Expected: status:development      │
+    │    Current:  status:backlog          │
+    │    → Mismatch! ⚠️                    │
+    └──────────────────────────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Remove Old Label │  REST API DELETE:
+    │ status:backlog   │  /repos/.../issues/4/labels/status:backlog
+    └──────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Add New Label    │  REST API POST:
+    │ status:development│ /repos/.../issues/4/labels
+    └──────────────────┘
+           ↓
+    ✅ Labels sync within 15 minutes
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  WORKFLOW 3: Manual Full Sync (with Dry-Run)                            │
+│  File: manual-sync-all.yml                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Trigger: Manual (workflow_dispatch)
+           ↓
+    ┌──────────────────────────────────┐
+    │ Input Parameters:                │
+    │ - dry_run: true/false            │
+    │ - direction: both/labels/project │
+    └──────────────────────────────────┘
+           ↓
+    ┌──────────────────┐
+    │ Fetch All Items  │  Same as Workflow 2
+    │ from Project #9  │
+    └──────────────────┘
+           ↓
+    ╔══════════════════════════════════╗
+    ║  PHASE 1: Project → Labels       ║
+    ╚══════════════════════════════════╝
+           ↓
+    ┌──────────────────────────────────┐
+    │ For each mismatch:               │
+    │ - Log planned change             │
+    │ - If dry_run=false: Apply change │
+    │ - If dry_run=true: Skip & log    │
+    └──────────────────────────────────┘
+           ↓
+    ╔══════════════════════════════════╗
+    ║  PHASE 2: Labels → Project       ║
+    ╚══════════════════════════════════╝
+           ↓
+    ┌──────────────────────────────────┐
+    │ For each mismatch:               │
+    │ - Log planned change             │
+    │ - If dry_run=false: Apply change │
+    │ - If dry_run=true: Skip & log    │
+    └──────────────────────────────────┘
+           ↓
+    ┌──────────────────────────────────┐
+    │ Summary Report:                  │
+    │ - Items processed: 3             │
+    │ - Changes made/planned: 1        │
+    │ - Already in sync: 2             │
+    └──────────────────────────────────┘
+           ↓
+    ✅ Complete
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  STATUS MAPPING                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Label               Project Status      Option ID
+    ─────────────────   ────────────────    ──────────
+    status:backlog   ↔  Backlog            8b99bfa8
+    status:ready     ↔  Ready              f75ad846
+    status:development↔ Development        47fc9ee4
+    status:review    ↔  Review             c5e8bce6
+    status:qa        ↔  QA                 33f744ff
+    status:defect    ↔  Defect             9b5ee227
+    status:done      ↔  Done               98236657
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  EXAMPLE USAGE SCENARIOS                                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ Scenario 1: Developer adds label ────────────────────────────────────┐
+│                                                                         │
+│  1. Developer adds "status:development" to issue #4                   │
+│  2. Workflow 1 triggers instantly                                     │
+│  3. Issue moves to "Development" column in Project #9                 │
+│  4. Time: < 30 seconds                                                │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ Scenario 2: PM drags card on board ──────────────────────────────────┐
+│                                                                         │
+│  1. PM drags issue #4 from "Backlog" to "Review" on project board     │
+│  2. Workflow 2 runs on next schedule (up to 15 min)                   │
+│  3. Label "status:backlog" removed, "status:review" added             │
+│  4. Time: < 15 minutes (or instant with manual trigger)               │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ Scenario 3: Initial setup / fixing inconsistencies ───────────────────┐
+│                                                                         │
+│  1. Run "Manual Full Sync" with dry_run=true                          │
+│  2. Review logs to see what would change                              │
+│  3. Run again with dry_run=false, direction=both                      │
+│  4. All issues now have correct labels matching project status        │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  REQUIRED PERMISSIONS                                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Repository Settings → Actions → General → Workflow permissions:
+    
+    ☑ Read and write permissions  ← MUST BE ENABLED
+    ☐ Read repository contents and packages permissions only
+    
+    ☑ Allow GitHub Actions to create and approve pull requests (optional)
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  TESTING CHECKLIST                                                       │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    After pushing workflows:
+    
+    ☐ Test 1: Add status:development to issue → Check project column
+    ☐ Test 2: Drag issue on board → Wait 15 min → Check labels
+    ☐ Test 3: Run manual sync (dry_run=true) → Review logs
+    ☐ Test 4: Run manual sync (dry_run=false) → Verify changes
+    ☐ Test 5: Check Actions logs for errors/warnings

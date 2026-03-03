@@ -1,0 +1,219 @@
+name: Sync Project Status to Labels
+
+on:
+  schedule:
+    - cron: "*/15 * * * *" # Every 15 minutes
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  issues: write
+  repository-projects: read
+  contents: read
+
+env:
+  PROJECT_NUMBER: 9
+  PROJECT_OWNER: "0xbaitan"
+  REPO_OWNER: "0xbaitan"
+  REPO_NAME: "FulgensUI"
+
+jobs:
+  sync-to-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get all project items with status
+        id: get-items
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Fetching all items from project #${{ env.PROJECT_NUMBER }}"
+
+          # Query to get all project items with their Status field values
+          QUERY=$(cat <<'EOF'
+          query($owner: String!, $projectNumber: Int!) {
+            user(login: $owner) {
+              projectV2(number: $projectNumber) {
+                id
+                items(first: 100) {
+                  nodes {
+                    id
+                    content {
+                      ... on Issue {
+                        id
+                        number
+                        repository {
+                          nameWithOwner
+                        }
+                        labels(first: 50) {
+                          nodes {
+                            name
+                          }
+                        }
+                      }
+                    }
+                    fieldValueByName(name: "Status") {
+                      ... on ProjectV2ItemFieldSingleSelectValue {
+                        name
+                        optionId
+                      }
+                    }
+                  }
+                  pageInfo {
+                    hasNextPage
+                    endCursor
+                  }
+                }
+              }
+            }
+          }
+          EOF
+          )
+
+          # Execute GraphQL query
+          RESPONSE=$(gh api graphql \
+            -f query="$QUERY" \
+            -f owner="${{ env.PROJECT_OWNER }}" \
+            -F projectNumber=${{ env.PROJECT_NUMBER }})
+
+          echo "GraphQL Response received"
+
+          # Save response to file for processing
+          echo "$RESPONSE" > /tmp/project_items.json
+
+          # Check if query was successful
+          if echo "$RESPONSE" | jq -e '.errors' > /dev/null; then
+            echo "Error fetching project items:"
+            echo "$RESPONSE" | jq '.errors'
+            exit 1
+          fi
+
+          # Count items
+          ITEM_COUNT=$(echo "$RESPONSE" | jq '.data.user.projectV2.items.nodes | length')
+          echo "Found $ITEM_COUNT items in project"
+          echo "item_count=$ITEM_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Process each item and sync labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Processing items from project..."
+
+          CHANGES_MADE=0
+          ITEMS_PROCESSED=0
+
+          # Read the project items from the file
+          ITEMS=$(cat /tmp/project_items.json | jq -c '.data.user.projectV2.items.nodes[]')
+
+          # Process each item
+          while IFS= read -r item; do
+            # Extract issue details
+            ISSUE_NUMBER=$(echo "$item" | jq -r '.content.number // empty')
+            REPO_FULL=$(echo "$item" | jq -r '.content.repository.nameWithOwner // empty')
+            STATUS_NAME=$(echo "$item" | jq -r '.fieldValueByName.name // empty')
+            
+            # Skip if not an issue or missing data
+            if [ -z "$ISSUE_NUMBER" ] || [ "$ISSUE_NUMBER" = "null" ]; then
+              echo "Skipping non-issue item"
+              continue
+            fi
+            
+            # Only process issues from our repository
+            if [ "$REPO_FULL" != "${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}" ]; then
+              echo "Skipping issue #$ISSUE_NUMBER from different repo: $REPO_FULL"
+              continue
+            fi
+            
+            ITEMS_PROCESSED=$((ITEMS_PROCESSED + 1))
+            
+            echo "Processing issue #$ISSUE_NUMBER"
+            echo "  Current Status: $STATUS_NAME"
+            
+            # Get current labels
+            CURRENT_LABELS=$(echo "$item" | jq -r '.content.labels.nodes[].name')
+            CURRENT_STATUS_LABEL=$(echo "$CURRENT_LABELS" | grep '^status:' || echo "")
+            
+            echo "  Current status label: ${CURRENT_STATUS_LABEL:-none}"
+            
+            # Map Status field value to label name
+            case "$STATUS_NAME" in
+              "Backlog")
+                EXPECTED_LABEL="status:backlog"
+                ;;
+              "Ready")
+                EXPECTED_LABEL="status:ready"
+                ;;
+              "Development")
+                EXPECTED_LABEL="status:development"
+                ;;
+              "Review")
+                EXPECTED_LABEL="status:review"
+                ;;
+              "QA")
+                EXPECTED_LABEL="status:qa"
+                ;;
+              "Defect")
+                EXPECTED_LABEL="status:defect"
+                ;;
+              "Done")
+                EXPECTED_LABEL="status:done"
+                ;;
+              "")
+                EXPECTED_LABEL=""
+                echo "  No Status field value set"
+                ;;
+              *)
+                echo "  Unknown status: $STATUS_NAME, skipping"
+                continue
+                ;;
+            esac
+            
+            echo "  Expected label: ${EXPECTED_LABEL:-none}"
+            
+            # Check if sync is needed
+            if [ "$CURRENT_STATUS_LABEL" = "$EXPECTED_LABEL" ]; then
+              echo "  ✓ Labels already in sync"
+              continue
+            fi
+            
+            echo "  ⚠ Sync needed: '$CURRENT_STATUS_LABEL' -> '$EXPECTED_LABEL'"
+            
+            # Remove old status label if it exists
+            if [ -n "$CURRENT_STATUS_LABEL" ]; then
+              echo "  Removing old label: $CURRENT_STATUS_LABEL"
+              
+              # URL encode the label name
+              ENCODED_LABEL=$(echo "$CURRENT_STATUS_LABEL" | jq -sRr @uri)
+              
+              gh api --method DELETE \
+                "/repos/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/issues/$ISSUE_NUMBER/labels/$ENCODED_LABEL" \
+                || echo "  Warning: Failed to remove label (may not exist)"
+            fi
+            
+            # Add new status label if Status field has a value
+            if [ -n "$EXPECTED_LABEL" ]; then
+              echo "  Adding new label: $EXPECTED_LABEL"
+              
+              gh api --method POST \
+                "/repos/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/issues/$ISSUE_NUMBER/labels" \
+                -f labels[]="$EXPECTED_LABEL" \
+                || echo "  Warning: Failed to add label"
+            fi
+            
+            CHANGES_MADE=$((CHANGES_MADE + 1))
+            echo "  ✅ Synced issue #$ISSUE_NUMBER"
+            echo ""
+            
+          done <<< "$ITEMS"
+
+          echo "=== Sync Summary ==="
+          echo "Items processed: $ITEMS_PROCESSED"
+          echo "Changes made: $CHANGES_MADE"
+          echo "Items already in sync: $((ITEMS_PROCESSED - CHANGES_MADE))"
+
+      - name: Log completion
+        if: always()
+        run: |
+          echo "=== Sync Project to Labels - Complete ==="
+          echo "Project: #${{ env.PROJECT_NUMBER }}"
+          echo "Repository: ${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}"
+          echo "Status: ${{ job.status }}"
+          echo "Trigger: ${{ github.event_name }}"

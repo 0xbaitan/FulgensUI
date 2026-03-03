@@ -15,6 +15,7 @@
     "clear": "rm -rf node_modules/.cache/ .turbo package-lock.json && turbo run clear",
     "prepare": "husky",
     "ai-commit": "bun scripts/ai-commit-agent.ts",
+    "prepare-commit": "bun scripts/prepare-commit.ts",
     "ci:install": "bun install --frozen-lockfile",
     "ci:panda": "turbo run panda",
     "ci:lint": "turbo run lint",

@@ -1,0 +1,197 @@
+name: Sync Label to Project Status
+
+on:
+  issues:
+    types: [labeled, unlabeled]
+
+permissions:
+  issues: read
+  repository-projects: write
+  contents: read
+
+env:
+  PROJECT_NUMBER: 9
+  PROJECT_OWNER: "0xbaitan"
+  STATUS_FIELD_ID: "PVTSSF_lAHOAeQxRM4BQVimzg-fIIo"
+
+jobs:
+  sync-to-project:
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.label.name, 'status:')
+    steps:
+      - name: Check label type
+        id: check-label
+        run: |
+          LABEL="${{ github.event.label.name }}"
+          echo "Label: $LABEL"
+
+          if [[ ! "$LABEL" =~ ^status: ]]; then
+            echo "Not a status label, skipping"
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "skip=false" >> $GITHUB_OUTPUT
+
+          # Extract status name from label (e.g., status:backlog -> backlog)
+          STATUS_NAME="${LABEL#status:}"
+          echo "status_name=$STATUS_NAME" >> $GITHUB_OUTPUT
+          echo "Status name: $STATUS_NAME"
+
+      - name: Map label to status option ID
+        if: steps.check-label.outputs.skip == 'false'
+        id: map-status
+        run: |
+          STATUS_NAME="${{ steps.check-label.outputs.status_name }}"
+
+          # Map status names to project field option IDs
+          case "$STATUS_NAME" in
+            "backlog")
+              OPTION_ID="8b99bfa8"
+              ;;
+            "ready")
+              OPTION_ID="f75ad846"
+              ;;
+            "development")
+              OPTION_ID="47fc9ee4"
+              ;;
+            "review")
+              OPTION_ID="c5e8bce6"
+              ;;
+            "qa")
+              OPTION_ID="33f744ff"
+              ;;
+            "defect")
+              OPTION_ID="9b5ee227"
+              ;;
+            "done")
+              OPTION_ID="98236657"
+              ;;
+            *)
+              echo "Unknown status: $STATUS_NAME"
+              echo "skip=true" >> $GITHUB_OUTPUT
+              exit 0
+              ;;
+          esac
+
+          echo "option_id=$OPTION_ID" >> $GITHUB_OUTPUT
+          echo "Mapped to option ID: $OPTION_ID"
+
+      - name: Find issue in project
+        if: steps.check-label.outputs.skip == 'false' && steps.map-status.outputs.skip != 'true'
+        id: find-item
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ github.event.issue.number }}"
+          REPO_OWNER="${{ github.repository_owner }}"
+          REPO_NAME="${{ github.event.repository.name }}"
+
+          echo "Finding project item for issue #$ISSUE_NUMBER"
+
+          # Query to find the issue's project items
+          QUERY=$(cat <<'EOF'
+          query($owner: String!, $repo: String!, $issueNumber: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $issueNumber) {
+                projectItems(first: 10) {
+                  nodes {
+                    id
+                    project {
+                      id
+                      number
+                    }
+                  }
+                }
+              }
+            }
+          }
+          EOF
+          )
+
+          # Execute GraphQL query
+          RESPONSE=$(gh api graphql \
+            -f query="$QUERY" \
+            -f owner="$REPO_OWNER" \
+            -f repo="$REPO_NAME" \
+            -F issueNumber="$ISSUE_NUMBER")
+
+          echo "GraphQL Response: $RESPONSE"
+
+          # Extract project item ID for project #9
+          PROJECT_ITEM_ID=$(echo "$RESPONSE" | jq -r \
+            ".data.repository.issue.projectItems.nodes[] | select(.project.number == ${{ env.PROJECT_NUMBER }}) | .id")
+
+          PROJECT_ID=$(echo "$RESPONSE" | jq -r \
+            ".data.repository.issue.projectItems.nodes[] | select(.project.number == ${{ env.PROJECT_NUMBER }}) | .project.id")
+
+          if [ -z "$PROJECT_ITEM_ID" ] || [ "$PROJECT_ITEM_ID" = "null" ]; then
+            echo "Issue #$ISSUE_NUMBER is not in project #${{ env.PROJECT_NUMBER }}"
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "project_item_id=$PROJECT_ITEM_ID" >> $GITHUB_OUTPUT
+          echo "project_id=$PROJECT_ID" >> $GITHUB_OUTPUT
+          echo "Found project item: $PROJECT_ITEM_ID in project: $PROJECT_ID"
+
+      - name: Update project status field
+        if: steps.check-label.outputs.skip == 'false' && steps.map-status.outputs.skip != 'true' && steps.find-item.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PROJECT_ID="${{ steps.find-item.outputs.project_id }}"
+          ITEM_ID="${{ steps.find-item.outputs.project_item_id }}"
+          FIELD_ID="${{ env.STATUS_FIELD_ID }}"
+          OPTION_ID="${{ steps.map-status.outputs.option_id }}"
+
+          echo "Updating project item $ITEM_ID"
+          echo "Setting Status field to option: $OPTION_ID"
+
+          # Mutation to update the Status field
+          MUTATION=$(cat <<'EOF'
+          mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+            updateProjectV2ItemFieldValue(
+              input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: { singleSelectOptionId: $optionId }
+              }
+            ) {
+              projectV2Item {
+                id
+              }
+            }
+          }
+          EOF
+          )
+
+          # Execute GraphQL mutation
+          RESPONSE=$(gh api graphql \
+            -f query="$MUTATION" \
+            -f projectId="$PROJECT_ID" \
+            -f itemId="$ITEM_ID" \
+            -f fieldId="$FIELD_ID" \
+            -f optionId="$OPTION_ID")
+
+          echo "Update response: $RESPONSE"
+
+          # Check for errors
+          if echo "$RESPONSE" | jq -e '.errors' > /dev/null; then
+            echo "Error updating project:"
+            echo "$RESPONSE" | jq '.errors'
+            exit 1
+          fi
+
+          echo "✅ Successfully updated Status field for issue #${{ github.event.issue.number }}"
+
+      - name: Log completion
+        if: always()
+        run: |
+          echo "=== Sync Label to Project - Summary ==="
+          echo "Issue: #${{ github.event.issue.number }}"
+          echo "Label: ${{ github.event.label.name }}"
+          echo "Action: ${{ github.event.action }}"
+          echo "Skipped: ${{ steps.check-label.outputs.skip || steps.map-status.outputs.skip || steps.find-item.outputs.skip || 'false' }}"
+          echo "Status: ${{ job.status }}"

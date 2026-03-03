@@ -8,6 +8,8 @@ subtask: true
 
 Prepares a commit by running tests, linting, and generating an AI commit message. Saves the message to a temp file for manual review.
 
+**Implementation:** This command is implemented as `scripts/prepare-commit.ts` and can be invoked via `bun run prepare-commit`.
+
 ## Workflow
 
 ### Step 1: Check Git Status
