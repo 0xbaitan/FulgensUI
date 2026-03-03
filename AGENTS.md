@@ -203,6 +203,47 @@ export const button = defineRecipe({
 
 ## Testing
 
+### Test Configuration Patterns
+
+#### Packages Without Tests
+
+For packages that don't require testing (e.g., documentation sites, configuration-only packages):
+
+1. **Create package-specific turbo.json:**
+
+   ```json
+   {
+     "$schema": "https://turbo.build/schema.json",
+     "extends": ["//"],
+     "tasks": {
+       "test": {
+         "cache": false,
+         "outputs": []
+       }
+     }
+   }
+   ```
+
+2. **Set test script to informative no-op:**
+
+   ```json
+   "test": "echo 'Package name has no tests - skipping'"
+   ```
+
+**Current packages using this pattern:**
+
+- `@fulgensui/docsite` - Documentation site with no interactive components
+
+**When to add tests:**
+
+If the package later includes:
+
+- Custom React components with logic
+- Interactive demos or widgets
+- Utility functions requiring validation
+
+Then add vitest dependencies and proper test configuration.
+
 ### Vitest
 
 Tests are co-located with components or in a `__tests__` directory:
@@ -352,14 +393,21 @@ turbo run build --filter=@fulgensui/core
 
 ### Coverage Thresholds
 
-Test coverage thresholds (enforced in CI only):
+**Coverage thresholds are currently DISABLED** to allow incremental test development.
 
-- **Lines**: 90%
-- **Branches**: 100%
-- **Functions**: 90%
-- **Statements**: 90%
+Coverage reports are still generated and viewable, but tests will pass regardless of coverage percentage. This allows:
 
-Pre-commit tests do NOT enforce coverage for speed. Use `bun run ci:test:coverage` to check coverage locally.
+- Gradual test addition as components are developed
+- Focus on test quality over quantity
+- Flexibility during rapid prototyping
+
+To view coverage reports:
+
+- Run `bun run ci:test:coverage` locally
+- Check the coverage output in terminal
+- View HTML reports in `packages/core/coverage/index.html`
+
+**Re-enabling thresholds:** If you want to enforce coverage thresholds in the future, uncomment the `thresholds` section in `packages/core/vitest.config.ts`.
 
 ### Troubleshooting
 
