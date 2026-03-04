@@ -17,11 +17,28 @@ FulgensUI/
 └── turbo.json         # Turborepo configuration
 ```
 
+## 🔄 CI/CD Status
+
+![Build Core](https://github.com/0xbaitan/FulgensUI/actions/workflows/build-core.yml/badge.svg)
+![Deploy Docsite](https://github.com/0xbaitan/FulgensUI/actions/workflows/deploy-docsite.yml/badge.svg)
+
+![Enforce Status](https://github.com/0xbaitan/FulgensUI/actions/workflows/enforce-single-status.yml/badge.svg)
+![Enforce Priority](https://github.com/0xbaitan/FulgensUI/actions/workflows/enforce-single-priority.yml/badge.svg)
+![Enforce Estimate](https://github.com/0xbaitan/FulgensUI/actions/workflows/enforce-single-estimate.yml/badge.svg)
+![Enforce Type](https://github.com/0xbaitan/FulgensUI/actions/workflows/enforce-single-type.yml/badge.svg)
+
+![Auto Label](https://github.com/0xbaitan/FulgensUI/actions/workflows/auto-label-new-issues.yml/badge.svg)
+![Auto Close](https://github.com/0xbaitan/FulgensUI/actions/workflows/auto-close-done.yml/badge.svg)
+![Auto Reopen](https://github.com/0xbaitan/FulgensUI/actions/workflows/auto-reopen-backlog.yml/badge.svg)
+![Cleanup](https://github.com/0xbaitan/FulgensUI/actions/workflows/cleanup-labels.yml/badge.svg)
+![Template Labels](https://github.com/0xbaitan/FulgensUI/actions/workflows/auto-apply-template-labels.yml/badge.svg)
+
 ## 📦 Packages
 
 ### Core (`@fulgensui/core`)
 
 The main UI component library built with:
+
 - **Vite** - Lightning-fast build tool
 - **React** - UI library
 - **PandaCSS** - Zero-runtime CSS-in-JS
@@ -30,6 +47,7 @@ The main UI component library built with:
 ### Docsite (`@fulgensui/docsite`)
 
 Documentation website built with:
+
 - **Docusaurus** - Static site generator
 - Imports and showcases components from the core package
 - Deployed to GitHub Pages

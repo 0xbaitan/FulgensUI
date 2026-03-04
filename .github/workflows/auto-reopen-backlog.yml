@@ -18,6 +18,55 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // === LABEL CONFIG (generated from .github/labels.yml) ===
+            // Run: node .github/scripts/inject-labels.js
+            // Last updated: 2026-03-04
+            const STATUS_LABELS = ["status:backlog", "status:ready", "status:development", "status:review", "status:qa", "status:defect", "status:done"];
+            const PRIORITY_LABELS = ["priority:must-have", "priority:should-have", "priority:could-have", "priority:won't-have"];
+            const TYPE_LABELS = ["type:feat", "type:fix", "type:docs", "type:refactor", "type:perf", "type:build", "type:test", "type:ci", "type:revert", "type:chore", "type:style"];
+            const ESTIMATE_LABELS = ["estimate:1", "estimate:2", "estimate:3", "estimate:5", "estimate:8", "estimate:13", "estimate:21", "estimate:34", "estimate:55", "estimate:89"];
+            const TRANSITION_RULES = {
+              "status:backlog": [
+                "status:ready",
+                "status:development",
+                "status:defect"
+              ],
+              "status:ready": [
+                "status:development",
+                "status:backlog"
+              ],
+              "status:development": [
+                "status:review",
+                "status:qa",
+                "status:defect",
+                "status:backlog"
+              ],
+              "status:review": [
+                "status:qa",
+                "status:development",
+                "status:defect"
+              ],
+              "status:qa": [
+                "status:done",
+                "status:defect",
+                "status:development",
+                "status:backlog"
+              ],
+              "status:defect": [
+                "status:development",
+                "status:backlog"
+              ],
+              "status:done": [
+                "status:backlog",
+                "status:ready",
+                "status:development",
+                "status:review",
+                "status:qa",
+                "status:defect"
+              ]
+            };
+            // === END LABEL CONFIG ===
+
             const issue_number = context.issue.number;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
@@ -34,19 +83,8 @@ jobs:
             const labels = issue.labels.map(l => l.name);
             console.log(`Current labels: ${labels.join(', ')}`);
 
-            // Define all status labels
-            const statusLabels = [
-              'status:backlog',
-              'status:ready',
-              'status:development',
-              'status:review',
-              'status:qa',
-              'status:defect',
-              'status:done'
-            ];
-
             // Find current status label
-            const currentStatusLabel = labels.find(l => statusLabels.includes(l));
+            const currentStatusLabel = labels.find(l => STATUS_LABELS.includes(l));
 
             if (currentStatusLabel && currentStatusLabel !== 'status:backlog') {
               console.log(`Found status label: ${currentStatusLabel}`);
@@ -74,9 +112,9 @@ jobs:
               // Add informative comment
               const comment = `🔄 **Issue Reopened**\n\n` +
                 `This issue has been automatically reset to \`status:backlog\`.\n\n` +
-                `Previous status: \`${currentStatusLabel}\`\n` +
-                `New status: \`status:backlog\`\n\n` +
-                `You can now move it through the workflow again.`;
+                `❌ **Previous status:** \`${currentStatusLabel.replace('status:', '')}\`\n` +
+                `✅ **New status:** \`backlog\`\n\n` +
+                `💡 **Tip:** You can now move it through the workflow again.`;
               
               await github.rest.issues.createComment({
                 owner,

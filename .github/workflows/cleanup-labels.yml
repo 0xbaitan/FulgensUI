@@ -26,6 +26,55 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // === LABEL CONFIG (generated from .github/labels.yml) ===
+            // Run: node .github/scripts/inject-labels.js
+            // Last updated: 2026-03-04
+            const STATUS_LABELS = ["status:backlog", "status:ready", "status:development", "status:review", "status:qa", "status:defect", "status:done"];
+            const PRIORITY_LABELS = ["priority:must-have", "priority:should-have", "priority:could-have", "priority:won't-have"];
+            const TYPE_LABELS = ["type:feat", "type:fix", "type:docs", "type:refactor", "type:perf", "type:build", "type:test", "type:ci", "type:revert", "type:chore", "type:style"];
+            const ESTIMATE_LABELS = ["estimate:1", "estimate:2", "estimate:3", "estimate:5", "estimate:8", "estimate:13", "estimate:21", "estimate:34", "estimate:55", "estimate:89"];
+            const TRANSITION_RULES = {
+              "status:backlog": [
+                "status:ready",
+                "status:development",
+                "status:defect"
+              ],
+              "status:ready": [
+                "status:development",
+                "status:backlog"
+              ],
+              "status:development": [
+                "status:review",
+                "status:qa",
+                "status:defect",
+                "status:backlog"
+              ],
+              "status:review": [
+                "status:qa",
+                "status:development",
+                "status:defect"
+              ],
+              "status:qa": [
+                "status:done",
+                "status:defect",
+                "status:development",
+                "status:backlog"
+              ],
+              "status:defect": [
+                "status:development",
+                "status:backlog"
+              ],
+              "status:done": [
+                "status:backlog",
+                "status:ready",
+                "status:development",
+                "status:review",
+                "status:qa",
+                "status:defect"
+              ]
+            };
+            // === END LABEL CONFIG ===
+
             const owner = context.repo.owner;
             const repo = context.repo.repo;
 
@@ -33,42 +82,7 @@ jobs:
             console.log(`Repository: ${owner}/${repo}`);
             console.log(`Time: ${new Date().toISOString()}`);
 
-            // Define label categories
-            const statusLabels = [
-              'status:backlog',
-              'status:ready',
-              'status:development',
-              'status:review',
-              'status:qa',
-              'status:defect',
-              'status:done'
-            ];
-
-            const priorityLabels = [
-              'priority:must-have',
-              'priority:should-have',
-              'priority:could-have',
-              'priority:won\'t-have'
-            ];
-
-            const typeLabels = [
-              'type:feat',
-              'type:fix',
-              'type:docs',
-              'type:refactor',
-              'type:perf',
-              'type:build',
-              'type:test',
-              'type:ci',
-              'type:revert',
-              'type:chore',
-              'type:style'
-            ];
-
-            const estimateLabels = [
-              'estimate:1', 'estimate:2', 'estimate:3', 'estimate:5', 'estimate:8',
-              'estimate:13', 'estimate:21', 'estimate:34', 'estimate:55', 'estimate:89'
-            ];
+            // Define label categories (use centralized config above)
 
             // Get all open issues
             const issues = await github.paginate(github.rest.issues.listForRepo, {
@@ -97,7 +111,7 @@ jobs:
               const violations = [];
               
               // Check status labels
-              const currentStatusLabels = labels.filter(l => statusLabels.includes(l));
+              const currentStatusLabels = labels.filter(l => STATUS_LABELS.includes(l));
               if (currentStatusLabels.length === 0) {
                 // Missing status label - add backlog
                 console.log(`  ⚠️  Missing status label. Adding status:backlog`);
@@ -130,7 +144,7 @@ jobs:
               }
               
               // Check priority labels
-              const currentPriorityLabels = labels.filter(l => priorityLabels.includes(l));
+              const currentPriorityLabels = labels.filter(l => PRIORITY_LABELS.includes(l));
               if (currentPriorityLabels.length > 1) {
                 console.log(`  ⚠️  Multiple priority labels: ${currentPriorityLabels.join(', ')}`);
                 const labelToKeep = currentPriorityLabels[0];
@@ -151,7 +165,7 @@ jobs:
               }
               
               // Check type labels
-              const currentTypeLabels = labels.filter(l => typeLabels.includes(l));
+              const currentTypeLabels = labels.filter(l => TYPE_LABELS.includes(l));
               if (currentTypeLabels.length > 1) {
                 console.log(`  ⚠️  Multiple type labels: ${currentTypeLabels.join(', ')}`);
                 const labelToKeep = currentTypeLabels[0];
@@ -172,7 +186,7 @@ jobs:
               }
               
               // Check estimate labels
-              const currentEstimateLabels = labels.filter(l => estimateLabels.includes(l));
+              const currentEstimateLabels = labels.filter(l => ESTIMATE_LABELS.includes(l));
               if (currentEstimateLabels.length > 1) {
                 console.log(`  ⚠️  Multiple estimate labels: ${currentEstimateLabels.join(', ')}`);
                 const labelToKeep = currentEstimateLabels[0];
@@ -200,7 +214,7 @@ jobs:
                 const comment = `🧹 **Daily Label Cleanup**\n\n` +
                   `This issue had label violations that were automatically corrected:\n\n` +
                   violations.map(v => `- ${v}`).join('\n') + '\n\n' +
-                  `*This cleanup runs daily at 00:00 GMT to maintain label consistency.*`;
+                  `💡 **Tip:** This cleanup runs daily at 00:00 GMT to maintain label consistency.`;
                 
                 await github.rest.issues.createComment({
                   owner,

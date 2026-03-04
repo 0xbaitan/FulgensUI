@@ -21,6 +21,55 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // === LABEL CONFIG (generated from .github/labels.yml) ===
+            // Run: node .github/scripts/inject-labels.js
+            // Last updated: 2026-03-04
+            const STATUS_LABELS = ["status:backlog", "status:ready", "status:development", "status:review", "status:qa", "status:defect", "status:done"];
+            const PRIORITY_LABELS = ["priority:must-have", "priority:should-have", "priority:could-have", "priority:won't-have"];
+            const TYPE_LABELS = ["type:feat", "type:fix", "type:docs", "type:refactor", "type:perf", "type:build", "type:test", "type:ci", "type:revert", "type:chore", "type:style"];
+            const ESTIMATE_LABELS = ["estimate:1", "estimate:2", "estimate:3", "estimate:5", "estimate:8", "estimate:13", "estimate:21", "estimate:34", "estimate:55", "estimate:89"];
+            const TRANSITION_RULES = {
+              "status:backlog": [
+                "status:ready",
+                "status:development",
+                "status:defect"
+              ],
+              "status:ready": [
+                "status:development",
+                "status:backlog"
+              ],
+              "status:development": [
+                "status:review",
+                "status:qa",
+                "status:defect",
+                "status:backlog"
+              ],
+              "status:review": [
+                "status:qa",
+                "status:development",
+                "status:defect"
+              ],
+              "status:qa": [
+                "status:done",
+                "status:defect",
+                "status:development",
+                "status:backlog"
+              ],
+              "status:defect": [
+                "status:development",
+                "status:backlog"
+              ],
+              "status:done": [
+                "status:backlog",
+                "status:ready",
+                "status:development",
+                "status:review",
+                "status:qa",
+                "status:defect"
+              ]
+            };
+            // === END LABEL CONFIG ===
+
             const issue_number = context.issue.number;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
@@ -35,23 +84,8 @@ jobs:
             const labels = issue.labels.map(l => l.name);
             console.log(`Current labels: ${labels.join(', ')}`);
 
-            // Define type labels (based on Conventional Commits)
-            const typeLabels = [
-              'type:feat',
-              'type:fix',
-              'type:docs',
-              'type:refactor',
-              'type:perf',
-              'type:build',
-              'type:test',
-              'type:ci',
-              'type:revert',
-              'type:chore',
-              'type:style'
-            ];
-
             // Find all type labels on the issue
-            const currentTypeLabels = labels.filter(l => typeLabels.includes(l));
+            const currentTypeLabels = labels.filter(l => TYPE_LABELS.includes(l));
             console.log(`Type labels found: ${currentTypeLabels.join(', ')}`);
 
             // If multiple type labels exist, keep only the most recently added one
@@ -63,7 +97,7 @@ jobs:
               console.log(`Triggered by label: ${triggeredLabel}`);
               
               let labelToKeep;
-              if (triggeredLabel && typeLabels.includes(triggeredLabel)) {
+              if (triggeredLabel && TYPE_LABELS.includes(triggeredLabel)) {
                 // Keep the newly added label
                 labelToKeep = triggeredLabel;
               } else {
@@ -91,10 +125,9 @@ jobs:
               // Add informative comment
               const comment = `🏷️ **Type Label Enforcement**\n\n` +
                 `Only one type label is allowed per issue.\n\n` +
-                `✅ Kept: \`${labelToKeep}\`\n` +
-                `❌ Removed: ${labelsToRemove.map(l => `\`${l}\``).join(', ')}\n\n` +
-                `*Type labels: feat, fix, docs, refactor, perf, build, test, ci, revert, chore, style*\n` +
-                `*Note: issue:* labels (bug, story, epic, task, item) are separate and can coexist with type labels.`;
+                `✅ **Kept:** \`${labelToKeep}\`\n` +
+                `❌ **Removed:** ${labelsToRemove.map(l => `\`${l}\``).join(', ')}\n\n` +
+                `💡 **Tip:** Type labels follow Conventional Commits. Change them anytime - old labels are automatically removed.`;
               
               await github.rest.issues.createComment({
                 owner,

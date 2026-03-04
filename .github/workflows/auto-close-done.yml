@@ -48,7 +48,7 @@ jobs:
               // Add informative comment
               const comment = `✅ **Issue Completed**\n\n` +
                 `This issue has been automatically closed because it was marked as \`status:done\`.\n\n` +
-                `If this was done in error, you can reopen the issue. The status will automatically reset to \`status:backlog\`.`;
+                `💡 **Tip:** If this was done in error, you can reopen the issue. The status will automatically reset to \`status:backlog\`.`;
               
               await github.rest.issues.createComment({
                 owner,
