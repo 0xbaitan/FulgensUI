@@ -1,9 +1,4 @@
-name: Enforce Single Priority and Estimate Labels
-
-# Ensures each issue has only ONE priority label and ONE estimate label
-# Priority labels: priority:must-have, priority:should-have, priority:could-have, priority:won't-have
-# Estimate labels: estimate:1, estimate:2, estimate:3, estimate:5, estimate:8, estimate:13, estimate:21, estimate:34, estimate:55, estimate:89
-# No transition validation (any-to-any allowed)
+name: Enforce Single Priority Label
 
 on:
   issues:
@@ -13,13 +8,62 @@ permissions:
   issues: write
 
 jobs:
-  enforce-single-priority-and-estimate:
+  enforce-single-priority:
     runs-on: ubuntu-latest
     steps:
-      - name: Enforce Single Priority and Estimate Labels
+      - name: Enforce Single Priority Label
         uses: actions/github-script@v7
         with:
           script: |
+            // === LABEL CONFIG (generated from .github/labels.yml) ===
+            // Run: node .github/scripts/inject-labels.js
+            // Last updated: 2026-03-04
+            const STATUS_LABELS = ["status:backlog", "status:ready", "status:development", "status:review", "status:qa", "status:defect", "status:done"];
+            const PRIORITY_LABELS = ["priority:must-have", "priority:should-have", "priority:could-have", "priority:won't-have"];
+            const TYPE_LABELS = ["type:feat", "type:fix", "type:docs", "type:refactor", "type:perf", "type:build", "type:test", "type:ci", "type:revert", "type:chore", "type:style"];
+            const ESTIMATE_LABELS = ["estimate:1", "estimate:2", "estimate:3", "estimate:5", "estimate:8", "estimate:13", "estimate:21", "estimate:34", "estimate:55", "estimate:89"];
+            const TRANSITION_RULES = {
+              "status:backlog": [
+                "status:ready",
+                "status:development",
+                "status:defect"
+              ],
+              "status:ready": [
+                "status:development",
+                "status:backlog"
+              ],
+              "status:development": [
+                "status:review",
+                "status:qa",
+                "status:defect",
+                "status:backlog"
+              ],
+              "status:review": [
+                "status:qa",
+                "status:development",
+                "status:defect"
+              ],
+              "status:qa": [
+                "status:done",
+                "status:defect",
+                "status:development",
+                "status:backlog"
+              ],
+              "status:defect": [
+                "status:development",
+                "status:backlog"
+              ],
+              "status:done": [
+                "status:backlog",
+                "status:ready",
+                "status:development",
+                "status:review",
+                "status:qa",
+                "status:defect"
+              ]
+            };
+            // === END LABEL CONFIG ===
+
             const issue_number = context.issue.number;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
@@ -34,26 +78,9 @@ jobs:
             const labels = issue.labels.map(l => l.name);
             console.log(`Current labels: ${labels.join(', ')}`);
 
-            // Define priority and estimate labels
-            const priorityLabels = [
-              'priority:must-have',
-              'priority:should-have',
-              'priority:could-have',
-              'priority:won\'t-have'
-            ];
-
-            const estimateLabels = [
-              'estimate:1', 'estimate:2', 'estimate:3', 'estimate:5', 'estimate:8',
-              'estimate:13', 'estimate:21', 'estimate:34', 'estimate:55', 'estimate:89'
-            ];
-
             // Find all priority labels on the issue
-            const currentPriorityLabels = labels.filter(l => priorityLabels.includes(l));
+            const currentPriorityLabels = labels.filter(l => PRIORITY_LABELS.includes(l));
             console.log(`Priority labels found: ${currentPriorityLabels.join(', ')}`);
-
-            // Find all estimate labels on the issue
-            const currentEstimateLabels = labels.filter(l => estimateLabels.includes(l));
-            console.log(`Estimate labels found: ${currentEstimateLabels.join(', ')}`);
 
             const triggeredLabel = context.payload.label?.name;
             console.log(`Triggered by label: ${triggeredLabel}`);
@@ -63,7 +90,7 @@ jobs:
               console.log('Multiple priority labels detected. Enforcing mutual exclusion...');
               
               let labelToKeep;
-              if (triggeredLabel && priorityLabels.includes(triggeredLabel)) {
+              if (triggeredLabel && PRIORITY_LABELS.includes(triggeredLabel)) {
                 labelToKeep = triggeredLabel;
               } else {
                 labelToKeep = currentPriorityLabels[0];
@@ -87,8 +114,9 @@ jobs:
               
               const comment = `🏷️ **Priority Label Enforcement**\n\n` +
                 `Only one priority label is allowed per issue.\n\n` +
-                `✅ Kept: \`${labelToKeep}\`\n` +
-                `❌ Removed: ${labelsToRemove.map(l => `\`${l}\``).join(', ')}`;
+                `✅ **Kept:** \`${labelToKeep}\`\n` +
+                `❌ **Removed:** ${labelsToRemove.map(l => `\`${l}\``).join(', ')}\n\n` +
+                `💡 **Tip:** Change priority anytime - the system automatically removes old labels when you add new ones.`;
               
               await github.rest.issues.createComment({
                 owner,
@@ -100,48 +128,4 @@ jobs:
               console.log('Priority label enforcement complete.');
             } else {
               console.log('No priority label conflicts detected.');
-            }
-
-            // Handle estimate label enforcement
-            if (currentEstimateLabels.length > 1) {
-              console.log('Multiple estimate labels detected. Enforcing mutual exclusion...');
-              
-              let labelToKeep;
-              if (triggeredLabel && estimateLabels.includes(triggeredLabel)) {
-                labelToKeep = triggeredLabel;
-              } else {
-                labelToKeep = currentEstimateLabels[0];
-              }
-              
-              const labelsToRemove = currentEstimateLabels.filter(l => l !== labelToKeep);
-              
-              for (const label of labelsToRemove) {
-                console.log(`Removing estimate label: ${label}`);
-                try {
-                  await github.rest.issues.removeLabel({
-                    owner,
-                    repo,
-                    issue_number,
-                    name: label
-                  });
-                } catch (error) {
-                  console.error(`Failed to remove label ${label}:`, error.message);
-                }
-              }
-              
-              const comment = `🏷️ **Estimate Label Enforcement**\n\n` +
-                `Only one estimate label is allowed per issue.\n\n` +
-                `✅ Kept: \`${labelToKeep}\`\n` +
-                `❌ Removed: ${labelsToRemove.map(l => `\`${l}\``).join(', ')}`;
-              
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number,
-                body: comment
-              });
-              
-              console.log('Estimate label enforcement complete.');
-            } else {
-              console.log('No estimate label conflicts detected.');
             }
