@@ -151,30 +151,45 @@ User adds: status:done
 Result: ❌ Blocked - "Cannot go from backlog → done. Valid next: ready, development, defect"
 ```
 
-### 2. Enforce Single Priority and Estimate Labels (`enforce-single-priority.yml`)
+### 2. Enforce Single Priority Label (`enforce-single-priority.yml`)
 
 **Triggers:** When any label is added to an issue
 
 **What it does:**
 
 - Ensures only ONE priority label exists per issue
-- Ensures only ONE estimate label exists per issue
-- No transition validation (any-to-any allowed for both)
-- Automatically removes conflicting priority/estimate labels
+- No transition validation (any-to-any allowed)
+- Automatically removes conflicting priority labels
 - Keeps the most recently added label
 
 **Example:**
 
 ```
-Issue has: priority:must-have, estimate:3
+Issue has: priority:must-have
 User adds: priority:could-have
-Result: ✅ Kept priority:could-have, removed priority:must-have (estimate:3 remains)
+Result: ✅ Kept priority:could-have, removed priority:must-have
+```
 
+### 3. Enforce Single Estimate Label (`enforce-single-estimate.yml`)
+
+**Triggers:** When any label is added to an issue
+
+**What it does:**
+
+- Ensures only ONE estimate label exists per issue
+- No transition validation (any-to-any allowed)
+- Automatically removes conflicting estimate labels
+- Keeps the most recently added label
+
+**Example:**
+
+```
+Issue has: estimate:3
 User adds: estimate:8
 Result: ✅ Kept estimate:8, removed estimate:3
 ```
 
-### 3. Enforce Single Type Label (`enforce-single-type.yml`)
+### 4. Enforce Single Type Label (`enforce-single-type.yml`)
 
 **Triggers:** When any label is added to an issue
 
@@ -194,7 +209,7 @@ User adds: type:fix
 Result: ✅ Kept type:fix, removed type:feat (issue:bug remains)
 ```
 
-### 4. Auto-Label New Issues (`auto-label-new-issues.yml`)
+### 5. Auto-Label New Issues (`auto-label-new-issues.yml`)
 
 **Triggers:** When a new issue is created
 
@@ -211,7 +226,7 @@ User creates new issue
 Result: ✅ Automatically labeled with status:backlog
 ```
 
-### 5. Auto-Apply Template Labels (`auto-apply-template-labels.yml`)
+### 6. Auto-Apply Template Labels (`auto-apply-template-labels.yml`)
 
 **Triggers:** When a new issue is created
 
@@ -244,7 +259,7 @@ Result:
 
 **Note:** Metadata fields do not appear in the issue description, only as labels and comments.
 
-### 6. Auto-Close Done Issues (`auto-close-done.yml`)
+### 7. Auto-Close Done Issues (`auto-close-done.yml`)
 
 **Triggers:** When `status:done` label is added
 
@@ -261,7 +276,7 @@ User adds: status:done
 Result: ✅ Issue automatically closed
 ```
 
-### 7. Auto-Reopen to Backlog (`auto-reopen-backlog.yml`)
+### 8. Auto-Reopen to Backlog (`auto-reopen-backlog.yml`)
 
 **Triggers:** When a closed issue is reopened
 
@@ -278,7 +293,7 @@ User reopens closed issue (had status:done)
 Result: ✅ Reset to status:backlog
 ```
 
-### 8. Daily Cleanup (`cleanup-labels.yml`)
+### 9. Daily Cleanup (`cleanup-labels.yml`)
 
 **Triggers:** Daily at 00:00 GMT (midnight UTC) + manual dispatch
 
@@ -300,6 +315,62 @@ Result: ✅ Reset to status:backlog
 Cleanup finds issue with: status:backlog, status:ready, status:done
 Result: ✅ Kept status:backlog, removed status:ready and status:done
 ```
+
+### 10. Auto-Inject Labels (`auto-inject-labels.yml`)
+
+**Triggers:** When `.github/labels.yml` is modified and pushed to main
+
+**What it does:**
+
+- Automatically updates all workflow files with new label configurations
+- Runs the injection script to generate label arrays
+- Creates a pull request with the changes for review
+- Ensures workflows stay in sync with centralized config
+
+**Example:**
+
+```
+You edit .github/labels.yml and add a new status label
+Workflow runs automatically and creates PR with updated workflows
+Review and merge PR to deploy the new labels
+```
+
+## Label Configuration Management
+
+### Centralized Configuration
+
+All label definitions are stored in `.github/labels.yml` as the single source of truth. This file contains:
+
+- Status labels with transition rules
+- Priority labels (MoSCoW)
+- Type labels (Conventional Commits)
+- Estimate labels (Fibonacci)
+- Relationship labels
+- Issue labels
+
+### Automatic Synchronization
+
+When you update `.github/labels.yml`:
+
+1. Push changes to the `main` branch
+2. The `auto-inject-labels.yml` workflow triggers automatically
+3. Script generates updated label arrays
+4. Creates a PR with updated workflows
+5. Review and merge the PR
+
+### Manual Label Injection
+
+Alternatively, you can manually update workflows:
+
+1. Edit `.github/labels.yml`
+2. Run the injection script:
+   ```bash
+   cd .github/scripts
+   npm install
+   node inject-labels.js
+   ```
+3. Copy the output into each workflow file between the `=== LABEL CONFIG ===` markers
+4. Commit and push changes
 
 ## Status Transition Rules
 

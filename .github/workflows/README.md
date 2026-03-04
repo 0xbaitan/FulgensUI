@@ -26,17 +26,77 @@ Previously, we attempted bidirectional sync with GitHub Project #9, but this fai
 
 1. **`enforce-single-status.yml`** - Status label mutual exclusion + transition validation
 2. **`enforce-single-priority.yml`** - Priority label mutual exclusion
-3. **`enforce-single-type.yml`** - Type label mutual exclusion
-4. **`auto-label-new-issues.yml`** - Add status:backlog to new issues
-5. **`auto-close-done.yml`** - Close issues when status:done applied
-6. **`auto-reopen-backlog.yml`** - Reset to backlog when reopened
-7. **`cleanup-labels.yml`** - Daily cleanup job (00:00 GMT)
+3. **`enforce-single-estimate.yml`** - Estimate label mutual exclusion (NEW)
+4. **`enforce-single-type.yml`** - Type label mutual exclusion
+5. **`auto-label-new-issues.yml`** - Add status:backlog to new issues
+6. **`auto-apply-template-labels.yml`** - Extract metadata from templates
+7. **`auto-close-done.yml`** - Close issues when status:done applied
+8. **`auto-reopen-backlog.yml`** - Reset to backlog when reopened
+9. **`cleanup-labels.yml`** - Daily cleanup job (00:00 GMT)
+10. **`auto-inject-labels.yml`** - Auto-update workflows when labels.yml changes
 
 ### Documentation Files
 
 - **[LABEL-AUTOMATION.md](./LABEL-AUTOMATION.md)** - Comprehensive user guide (~400 lines)
 - **[TRANSITION-RULES.md](./TRANSITION-RULES.md)** - Visual transition matrix (~200 lines)
 - **[DIAGRAM.txt](./DIAGRAM.txt)** - Workflow diagrams
+
+---
+
+## 🔧 Label Configuration & Auto-Injection
+
+### Centralized Config
+
+All label definitions are stored in `.github/labels.yml` (single source of truth).
+
+**Structure:**
+
+- **Status labels** - With transition rules for workflow validation
+- **Priority labels** - MoSCoW prioritization (must/should/could/won't)
+- **Type labels** - Based on Conventional Commits
+- **Estimate labels** - Fibonacci sequence for story points
+- **Relationship labels** - Blocked, has-parent (not mutually exclusive)
+- **Issue labels** - Bug, story, epic, task, item (not mutually exclusive)
+
+### Automatic Updates
+
+When `.github/labels.yml` is updated:
+
+1. Push changes to `main` branch
+2. `auto-inject-labels.yml` workflow triggers automatically
+3. Workflow runs injection script and updates all workflows
+4. Creates PR with changes for review
+5. Merge PR to deploy updated labels
+
+### Manual Updates (Alternative)
+
+1. Edit `.github/labels.yml` to add/remove labels
+2. Run injection script:
+   ```bash
+   cd .github/scripts
+   npm install
+   node inject-labels.js
+   ```
+3. Copy output into each workflow between `=== LABEL CONFIG ===` markers
+4. Commit and push changes
+
+### Label Injection Script
+
+The script `.github/scripts/inject-labels.js`:
+
+- Reads `labels.yml` and parses YAML
+- Generates JavaScript label arrays
+- Generates transition rules object
+- Outputs formatted inline script for workflows
+- Ensures all workflows stay in sync
+
+**Usage:**
+
+```bash
+cd .github/scripts
+npm install
+node inject-labels.js  # Output inline script to copy into workflows
+```
 
 ---
 
@@ -67,7 +127,24 @@ Previously, we attempted bidirectional sync with GitHub Project #9, but this fai
 
 **No transition validation** - any-to-any allowed.
 
-### 3. Type Labels (Mutually Exclusive)
+### 3. Estimate Labels (Mutually Exclusive)
+
+**Only ONE estimate label per issue:**
+
+- `estimate:1` - 1 story point
+- `estimate:2` - 2 story points
+- `estimate:3` - 3 story points
+- `estimate:5` - 5 story points
+- `estimate:8` - 8 story points
+- `estimate:13` - 13 story points
+- `estimate:21` - 21 story points
+- `estimate:34` - 34 story points
+- `estimate:55` - 55 story points
+- `estimate:89` - 89 story points
+
+**Fibonacci sequence for story point estimation. No transition validation** - any-to-any allowed.
+
+### 4. Type Labels (Mutually Exclusive)
 
 **Only ONE type label per issue:**
 
@@ -85,7 +162,7 @@ Previously, we attempted bidirectional sync with GitHub Project #9, but this fai
 
 **No transition validation** - any-to-any allowed.
 
-### 4. Issue Labels (NOT Mutually Exclusive)
+### 5. Issue Labels (NOT Mutually Exclusive)
 
 **Multiple allowed** (separate from type labels):
 
