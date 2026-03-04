@@ -1,0 +1,9 @@
+{
+  "name": "github-workflow-scripts",
+  "version": "1.0.0",
+  "description": "Scripts for GitHub Actions workflows",
+  "private": true,
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}
