@@ -2,145 +2,192 @@ name: Enforce Single Status Label
 
 on:
   issues:
-    types: [labeled]
+    types: [labeled, reopened]
 
 permissions:
   issues: write
-  contents: read
 
 jobs:
-  enforce-status:
+  enforce-single-status:
     runs-on: ubuntu-latest
-    if: startsWith(github.event.label.name, 'status:')
     steps:
-      - name: Get current labels
-        id: get-labels
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Checking status labels on issue #${{ github.event.issue.number }}"
+      - name: Enforce Single Status Label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // === LABEL CONFIG (generated from .github/labels.yml) ===
+            // Run: node .github/scripts/inject-labels.js
+            // Last updated: 2026-03-04
+            const STATUS_LABELS = ["status:backlog", "status:ready", "status:development", "status:review", "status:qa", "status:defect", "status:done"];
+            const PRIORITY_LABELS = ["priority:must-have", "priority:should-have", "priority:could-have", "priority:won't-have"];
+            const TYPE_LABELS = ["type:feat", "type:fix", "type:docs", "type:refactor", "type:perf", "type:build", "type:test", "type:ci", "type:revert", "type:chore", "type:style"];
+            const ESTIMATE_LABELS = ["estimate:1", "estimate:2", "estimate:3", "estimate:5", "estimate:8", "estimate:13", "estimate:21", "estimate:34", "estimate:55", "estimate:89"];
+            const TRANSITION_RULES = {
+              "status:backlog": [
+                "status:ready",
+                "status:development",
+                "status:defect"
+              ],
+              "status:ready": [
+                "status:development",
+                "status:backlog"
+              ],
+              "status:development": [
+                "status:review",
+                "status:qa",
+                "status:defect",
+                "status:backlog"
+              ],
+              "status:review": [
+                "status:qa",
+                "status:development",
+                "status:defect"
+              ],
+              "status:qa": [
+                "status:done",
+                "status:defect",
+                "status:development",
+                "status:backlog"
+              ],
+              "status:defect": [
+                "status:development",
+                "status:backlog"
+              ],
+              "status:done": [
+                "status:backlog",
+                "status:ready",
+                "status:development",
+                "status:review",
+                "status:qa",
+                "status:defect"
+              ]
+            };
+            // === END LABEL CONFIG ===
 
-          # Get all current labels
-          LABELS=$(gh api /repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels --jq '.[].name')
+            const issue_number = context.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
 
-          # Find current status labels (excluding the one just added)
-          CURRENT_STATUS=""
-          for label in $LABELS; do
-            if [[ "$label" =~ ^status: ]] && [[ "$label" != "${{ github.event.label.name }}" ]]; then
-              CURRENT_STATUS="$label"
-              break
-            fi
-          done
+            console.log(`Processing issue #${issue_number}...`);
 
-          echo "current_status=$CURRENT_STATUS" >> $GITHUB_OUTPUT
-          echo "new_status=${{ github.event.label.name }}" >> $GITHUB_OUTPUT
+            // Get current labels
+            const { data: issue } = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number
+            });
 
-          if [ -n "$CURRENT_STATUS" ]; then
-            echo "Found existing status: $CURRENT_STATUS"
-          else
-            echo "No existing status label found"
-          fi
+            const labels = issue.labels.map(l => l.name);
+            console.log(`Current labels: ${labels.join(', ')}`);
 
-      - name: Validate transition
-        id: validate
-        env:
-          CURRENT: ${{ steps.get-labels.outputs.current_status }}
-          NEW: ${{ steps.get-labels.outputs.new_status }}
-        run: |
-          echo "Validating transition: $CURRENT → $NEW"
+            // Find all status labels
+            const currentStatusLabels = labels.filter(l => STATUS_LABELS.includes(l));
+            console.log(`Status labels found: ${currentStatusLabels.join(', ')}`);
 
-          # If no current status, any new status is valid (new issue or first label)
-          if [ -z "$CURRENT" ]; then
-            echo "No current status - transition valid"
-            echo "valid=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+            if (currentStatusLabels.length === 0) {
+              console.log('No status labels found. Nothing to enforce.');
+              return;
+            }
 
-          # Define valid transitions
-          declare -A VALID_TRANSITIONS
-          VALID_TRANSITIONS=(
-            ["status:backlog"]="status:ready status:development status:defect"
-            ["status:ready"]="status:development status:backlog"
-            ["status:development"]="status:review status:qa status:defect status:backlog"
-            ["status:review"]="status:qa status:development status:defect"
-            ["status:qa"]="status:done status:defect status:development status:backlog"
-            ["status:defect"]="status:development status:backlog"
-            ["status:done"]="status:backlog status:ready status:development status:review status:qa status:defect"
-          )
+            // Determine which label was just added
+            const triggeredLabel = context.payload.label?.name;
+            console.log(`Triggered by label: ${triggeredLabel || '(reopened event)'}`);
 
-          # Get valid transitions for current status
-          VALID="${VALID_TRANSITIONS[$CURRENT]}"
+            if (currentStatusLabels.length === 1) {
+              console.log('Only one status label present. No conflicts.');
+              return;
+            }
 
-          # Check if new status is in valid list
-          if [[ " $VALID " =~ " $NEW " ]]; then
-            echo "✅ Transition valid: $CURRENT → $NEW"
-            echo "valid=true" >> $GITHUB_OUTPUT
-          else
-            echo "❌ Transition invalid: $CURRENT → $NEW"
-            echo "Valid transitions from $CURRENT: $VALID"
-            echo "valid=false" >> $GITHUB_OUTPUT
-            echo "valid_next=$VALID" >> $GITHUB_OUTPUT
-          fi
+            // Multiple status labels detected
+            console.log('⚠️ Multiple status labels detected. Enforcing mutual exclusion...');
 
-      - name: Block invalid transition
-        if: steps.validate.outputs.valid == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          CURRENT="${{ steps.get-labels.outputs.current_status }}"
-          NEW="${{ steps.get-labels.outputs.new_status }}"
-          VALID="${{ steps.validate.outputs.valid_next }}"
+            // Determine label to keep
+            let labelToKeep;
+            if (triggeredLabel && STATUS_LABELS.includes(triggeredLabel)) {
+              labelToKeep = triggeredLabel;
+            } else {
+              // Fallback: keep first one (shouldn't happen normally)
+              labelToKeep = currentStatusLabels[0];
+            }
 
-          # Extract status names (remove "status:" prefix)
-          CURRENT_NAME="${CURRENT#status:}"
-          NEW_NAME="${NEW#status:}"
-          VALID_NAMES=$(echo "$VALID" | sed 's/status://g')
+            const oldLabel = currentStatusLabels.find(l => l !== labelToKeep);
 
-          echo "Blocking invalid transition and adding comment"
+            // Validate transition if we have both old and new
+            if (oldLabel && labelToKeep !== oldLabel) {
+              console.log(`Validating transition: ${oldLabel} → ${labelToKeep}`);
+              
+              const validNextStates = TRANSITION_RULES[oldLabel] || [];
+              const isValidTransition = validNextStates.includes(labelToKeep);
+              
+              if (!isValidTransition) {
+                console.log(`❌ Invalid transition from ${oldLabel} to ${labelToKeep}`);
+                console.log(`Valid next states: ${validNextStates.join(', ')}`);
+                
+                // Remove the invalid new label
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number,
+                    name: labelToKeep
+                  });
+                  console.log(`Removed invalid label: ${labelToKeep}`);
+                } catch (error) {
+                  console.error(`Failed to remove label ${labelToKeep}:`, error.message);
+                }
+                
+                // Post error comment
+                const oldName = oldLabel.replace('status:', '');
+                const newName = labelToKeep.replace('status:', '');
+                const validNames = validNextStates.map(s => s.replace('status:', '')).join(', ');
+                
+                const comment = `❌ **Invalid Status Transition**\n\n` +
+                  `Cannot transition from \`${oldName}\` → \`${newName}\`\n\n` +
+                  `**Valid next states from \`${oldName}\`:** ${validNames}\n\n` +
+                  `💡 **Tip:** Follow the workflow path. See [TRANSITION-RULES.md](https://github.com/${owner}/${repo}/blob/main/.github/workflows/TRANSITION-RULES.md) for the complete state machine.`;
+                
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number,
+                  body: comment
+                });
+                
+                console.log('✅ Invalid transition blocked.');
+                return;
+              }
+              
+              console.log('✅ Transition is valid.');
+            }
 
-          # Remove the newly added invalid label
-          ENCODED_NEW=$(echo "$NEW" | jq -sRr @uri)
-          gh api --method DELETE \
-            /repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels/$ENCODED_NEW
+            // Valid transition or no old label - remove old labels
+            const labelsToRemove = currentStatusLabels.filter(l => l !== labelToKeep);
 
-          # Add comment explaining why
-          gh api --method POST \
-            /repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
-            -f body="❌ Cannot go from $CURRENT_NAME → $NEW_NAME. Valid next: $VALID_NAMES"
+            for (const label of labelsToRemove) {
+              console.log(`Removing old label: ${label}`);
+              try {
+                await github.rest.issues.removeLabel({
+                  owner,
+                  repo,
+                  issue_number,
+                  name: label
+                });
+              } catch (error) {
+                console.error(`Failed to remove label ${label}:`, error.message);
+              }
+            }
 
-          echo "Invalid transition blocked"
+            // Post success comment
+            const comment = `🏷️ **Status Label Updated**\n\n` +
+              `✅ **Current status:** \`${labelToKeep.replace('status:', '')}\`\n` +
+              `❌ **Removed:** ${labelsToRemove.map(l => `\`${l.replace('status:', '')}\``).join(', ')}\n\n` +
+              `💡 **Tip:** Status labels are mutually exclusive. Adding a new status automatically removes the old one.`;
 
-      - name: Remove other status labels
-        if: steps.validate.outputs.valid == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          CURRENT="${{ steps.get-labels.outputs.current_status }}"
-          NEW="${{ steps.get-labels.outputs.new_status }}"
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body: comment
+            });
 
-          if [ -z "$CURRENT" ]; then
-            echo "No existing status label to remove"
-            exit 0
-          fi
-
-          echo "Removing old status label: $CURRENT"
-
-          # URL encode the label name
-          ENCODED_CURRENT=$(echo "$CURRENT" | jq -sRr @uri)
-
-          # Remove the old status label
-          gh api --method DELETE \
-            /repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels/$ENCODED_CURRENT
-
-          echo "✅ Kept: $NEW"
-          echo "✅ Removed: $CURRENT"
-
-      - name: Log completion
-        if: always()
-        run: |
-          echo "=== Enforce Single Status - Summary ==="
-          echo "Issue: #${{ github.event.issue.number }}"
-          echo "Previous status: ${{ steps.get-labels.outputs.current_status || 'none' }}"
-          echo "New status: ${{ steps.get-labels.outputs.new_status }}"
-          echo "Transition valid: ${{ steps.validate.outputs.valid }}"
-          echo "Status: ${{ job.status }}"
+            console.log('✅ Status label enforcement complete.');
