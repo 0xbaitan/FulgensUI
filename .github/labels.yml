@@ -1,0 +1,80 @@
+# Centralized label configuration for FulgensUI
+# This file is the single source of truth for all label-based workflows
+# Consumed by: .github/scripts/inject-labels.js
+
+# Status labels (mutually exclusive, with transition validation)
+status:
+  prefix: "status:"
+  labels:
+    - backlog
+    - ready
+    - development
+    - review
+    - qa
+    - defect
+    - done
+  # Transition rules (from -> [allowed destinations])
+  transitions:
+    backlog: [ready, development, defect]
+    ready: [development, backlog]
+    development: [review, qa, defect, backlog]
+    review: [qa, development, defect]
+    qa: [done, defect, development, backlog]
+    defect: [development, backlog]
+    done: [backlog, ready, development, review, qa, defect] # Allow any on reopen
+
+# Priority labels (mutually exclusive)
+priority:
+  prefix: "priority:"
+  labels:
+    - must-have
+    - should-have
+    - could-have
+    - won't-have
+
+# Type labels (mutually exclusive)
+type:
+  prefix: "type:"
+  labels:
+    - feat
+    - fix
+    - docs
+    - refactor
+    - perf
+    - build
+    - test
+    - ci
+    - revert
+    - chore
+    - style
+
+# Estimate labels (mutually exclusive)
+estimate:
+  prefix: "estimate:"
+  labels:
+    - "1"
+    - "2"
+    - "3"
+    - "5"
+    - "8"
+    - "13"
+    - "21"
+    - "34"
+    - "55"
+    - "89"
+
+# Relationship labels (NOT mutually exclusive)
+relationship:
+  labels:
+    - blocked
+    - has-parent
+
+# Issue labels (NOT mutually exclusive)
+issue:
+  prefix: "issue:"
+  labels:
+    - bug
+    - story
+    - epic
+    - task
+    - item
