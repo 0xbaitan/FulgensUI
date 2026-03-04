@@ -67,7 +67,49 @@ Based on [Conventional Commits](https://www.conventionalcommits.org/):
 
 **No transition validation** - you can change type at any time.
 
-### 4. Issue Labels (NOT Mutually Exclusive)
+### 4. Estimate Labels (Mutually Exclusive)
+
+**Only ONE estimate label is allowed per issue.**
+
+Based on Fibonacci sequence for story point estimation:
+
+- `estimate:1` - 1 story point
+- `estimate:2` - 2 story points
+- `estimate:3` - 3 story points
+- `estimate:5` - 5 story points
+- `estimate:8` - 8 story points
+- `estimate:13` - 13 story points
+- `estimate:21` - 21 story points
+- `estimate:34` - 34 story points
+- `estimate:55` - 55 story points
+- `estimate:89` - 89 story points
+
+**No transition validation** - you can change estimates at any time.
+
+**Note:** Estimates are optional. Issues without estimates are valid.
+
+### 5. Relationship Labels (NOT Mutually Exclusive)
+
+**Multiple relationship labels can coexist:**
+
+- `blocked` - This issue is blocked by another issue
+- `has-parent` - This issue has a parent issue
+
+These labels are automatically applied based on issue template metadata fields.
+When applied, a comment is added with a link to the related issue.
+
+**Example:**
+
+```
+Issue #123 has metadata: Blocked By: #45
+Result:
+- Label applied: blocked
+- Comment added: "🔗 **Blocked by:** #45 - [Feature] Implement API endpoint"
+```
+
+**Note:** Use GitHub's native "Development" sidebar to manually link issues for more advanced tracking.
+
+### 6. Issue Labels (NOT Mutually Exclusive)
 
 **Multiple issue labels can coexist** (separate from type labels):
 
@@ -79,7 +121,7 @@ Based on [Conventional Commits](https://www.conventionalcommits.org/):
 
 **Note:** These are separate from `type:*` labels and do not conflict with them.
 
-### 5. Other Labels
+### 7. Other Labels
 
 The following labels are not automated and can be used freely:
 
@@ -109,23 +151,27 @@ User adds: status:done
 Result: ❌ Blocked - "Cannot go from backlog → done. Valid next: ready, development, defect"
 ```
 
-### 2. Enforce Single Priority Label (`enforce-single-priority.yml`)
+### 2. Enforce Single Priority and Estimate Labels (`enforce-single-priority.yml`)
 
 **Triggers:** When any label is added to an issue
 
 **What it does:**
 
 - Ensures only ONE priority label exists per issue
-- No transition validation (any-to-any allowed)
-- Automatically removes conflicting priority labels
+- Ensures only ONE estimate label exists per issue
+- No transition validation (any-to-any allowed for both)
+- Automatically removes conflicting priority/estimate labels
 - Keeps the most recently added label
 
 **Example:**
 
 ```
-Issue has: priority:must-have
+Issue has: priority:must-have, estimate:3
 User adds: priority:could-have
-Result: ✅ Kept priority:could-have, removed priority:must-have
+Result: ✅ Kept priority:could-have, removed priority:must-have (estimate:3 remains)
+
+User adds: estimate:8
+Result: ✅ Kept estimate:8, removed estimate:3
 ```
 
 ### 3. Enforce Single Type Label (`enforce-single-type.yml`)
@@ -165,7 +211,40 @@ User creates new issue
 Result: ✅ Automatically labeled with status:backlog
 ```
 
-### 5. Auto-Close Done Issues (`auto-close-done.yml`)
+### 5. Auto-Apply Template Labels (`auto-apply-template-labels.yml`)
+
+**Triggers:** When a new issue is created
+
+**What it does:**
+
+- Extracts hidden metadata from issue templates (fields marked "⚙️ Metadata Fields")
+- Automatically applies labels based on form inputs:
+  - **Priority:** Maps dropdown selection to `priority:*` label (default: `priority:should-have`)
+  - **Estimate:** Maps dropdown selection to `estimate:*` label (if provided)
+  - **Blocked By:** Adds `blocked` label and detailed comment with link to blocking issue
+  - **Parent Issue:** Adds `has-parent` label and detailed comment with link to parent issue
+- Validates referenced issues exist (warns if not found)
+- Fetches issue titles for detailed comments
+
+**Example:**
+
+```
+User creates issue with metadata:
+- Priority: should-have
+- Estimate: 5
+- Blocked By: #123
+- Parent Issue: #456
+
+Result:
+✅ Labels applied: priority:should-have, estimate:5, blocked, has-parent
+✅ Comments added:
+   - "🔗 **Blocked by:** #123 - [Bug] Fix authentication flow"
+   - "🔗 **Parent issue:** #456 - [Epic] User authentication system"
+```
+
+**Note:** Metadata fields do not appear in the issue description, only as labels and comments.
+
+### 6. Auto-Close Done Issues (`auto-close-done.yml`)
 
 **Triggers:** When `status:done` label is added
 
@@ -182,7 +261,7 @@ User adds: status:done
 Result: ✅ Issue automatically closed
 ```
 
-### 6. Auto-Reopen to Backlog (`auto-reopen-backlog.yml`)
+### 7. Auto-Reopen to Backlog (`auto-reopen-backlog.yml`)
 
 **Triggers:** When a closed issue is reopened
 
@@ -199,7 +278,7 @@ User reopens closed issue (had status:done)
 Result: ✅ Reset to status:backlog
 ```
 
-### 7. Daily Cleanup (`cleanup-labels.yml`)
+### 8. Daily Cleanup (`cleanup-labels.yml`)
 
 **Triggers:** Daily at 00:00 GMT (midnight UTC) + manual dispatch
 
@@ -210,6 +289,7 @@ Result: ✅ Reset to status:backlog
   - Multiple status labels (keeps first, removes rest)
   - Multiple priority labels (keeps first, removes rest)
   - Multiple type labels (keeps first, removes rest)
+  - Multiple estimate labels (keeps first, removes rest)
   - Missing status labels (adds `status:backlog`)
 - Adds a comment to each fixed issue
 - Generates a summary report
@@ -252,7 +332,9 @@ All other transitions are blocked with an error comment. Examples:
 1. **Status:** Add one of the `status:*` labels to move an issue through the workflow
 2. **Priority:** Add one of the `priority:*` labels to set priority
 3. **Type:** Add one of the `type:*` labels to categorize the work
-4. **Issue:** Add any `issue:*` labels as needed (can have multiple)
+4. **Estimate:** Add one of the `estimate:*` labels to set story points
+5. **Issue:** Add any `issue:*` labels as needed (can have multiple)
+6. **Relationship:** Add `blocked` or `has-parent` labels to indicate dependencies
 
 ### Understanding Automation Behavior
 
@@ -264,10 +346,12 @@ All other transitions are blocked with an error comment. Examples:
 ### Best Practices
 
 1. **Start with backlog:** New issues automatically get `status:backlog`
-2. **Follow the workflow:** Move issues through the status pipeline in order
-3. **Use defect for rework:** If QA fails, use `status:defect` to send back to development
-4. **Set priority early:** Add priority labels when triaging issues
-5. **Type at creation:** Add type labels when creating issues if known
+2. **Use templates:** Issue templates automatically apply priority and estimate labels
+3. **Follow the workflow:** Move issues through the status pipeline in order
+4. **Use defect for rework:** If QA fails, use `status:defect` to send back to development
+5. **Estimate early:** Add estimates when creating issues for better planning
+6. **Track relationships:** Use Blocked By and Parent Issue fields in templates for dependencies
+7. **Type at creation:** Add type labels when creating issues if known
 
 ### Troubleshooting
 
@@ -313,13 +397,14 @@ This is a **one-way sync** (labels → project) and is entirely manual. The proj
 
 ```
 .github/workflows/
-├── enforce-single-status.yml      # Status label mutual exclusion + transition validation
-├── enforce-single-priority.yml    # Priority label mutual exclusion
-├── enforce-single-type.yml        # Type label mutual exclusion
-├── auto-label-new-issues.yml      # Add status:backlog to new issues
-├── auto-close-done.yml            # Close issues when status:done applied
-├── auto-reopen-backlog.yml        # Reset to backlog when reopened
-└── cleanup-labels.yml             # Daily cleanup job (00:00 GMT)
+├── enforce-single-status.yml         # Status label mutual exclusion + transition validation
+├── enforce-single-priority.yml       # Priority + Estimate label mutual exclusion
+├── enforce-single-type.yml           # Type label mutual exclusion
+├── auto-label-new-issues.yml         # Add status:backlog to new issues
+├── auto-apply-template-labels.yml    # Apply labels from template metadata
+├── auto-close-done.yml               # Close issues when status:done applied
+├── auto-reopen-backlog.yml           # Reset to backlog when reopened
+└── cleanup-labels.yml                # Daily cleanup job (00:00 GMT)
 ```
 
 ### API Used

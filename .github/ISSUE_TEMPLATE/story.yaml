@@ -1,53 +1,68 @@
 name: 📖 Story
 description: User story with acceptance criteria
 title: "[Story]: "
-labels: ["story"]
+labels: ["issue:story"]
 body:
-  - type: input
-    id: title
+  - type: markdown
     attributes:
-      label: Title
-      description: "Issue title (max 256 characters)"
-      placeholder: "Brief description of the story"
-    validations:
-      required: true
+      value: |
+        ---
+        ## ⚙️ Metadata Fields
 
-  - type: input
-    id: priority
+        The following fields are used to automatically apply labels to this issue.
+        They will **not** appear in the issue description.
+
+  - type: dropdown
+    id: priority_meta
     attributes:
       label: Priority
-      description: "must have | should have | could have | won't have"
-      placeholder: "should have"
+      description: "MoSCoW priority for this issue"
+      options:
+        - must-have
+        - should-have
+        - could-have
+        - won't-have
+      default: 1
     validations:
       required: true
 
-  - type: input
-    id: estimate
+  - type: dropdown
+    id: estimate_meta
     attributes:
       label: Estimate
-      description: "Fibonacci: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 (leave empty if unknown)"
-      placeholder: "5"
+      description: "Story points (Fibonacci sequence) - optional"
+      options:
+        - ""
+        - "1"
+        - "2"
+        - "3"
+        - "5"
+        - "8"
+        - "13"
+        - "21"
+        - "34"
+        - "55"
+        - "89"
 
   - type: input
-    id: blocked_by
+    id: blocked_by_meta
     attributes:
       label: Blocked By
-      description: "Issue number that blocks this (leave empty if not blocked)"
+      description: "Issue number that blocks this (e.g., #123)"
       placeholder: ""
 
   - type: input
-    id: parent_link
+    id: parent_link_meta
     attributes:
-      label: Parent Link
-      description: "Epic issue number (leave empty if no parent)"
+      label: Parent Issue
+      description: "Parent issue number (e.g., #456)"
       placeholder: ""
 
-  - type: input
-    id: theme
+  - type: markdown
     attributes:
-      label: Theme
-      description: "Component or theme label (e.g., Button, Modal, Core, Docs)"
-      placeholder: ""
+      value: |
+        ---
+        ## 📝 Issue Details
 
   - type: textarea
     id: user_story
@@ -72,7 +87,7 @@ body:
     attributes:
       label: Background
       description: "Any additional context"
-      placeholder: "Additional context or background information..."
+      placeholder: "N/A"
 
   - type: textarea
     id: subtasks

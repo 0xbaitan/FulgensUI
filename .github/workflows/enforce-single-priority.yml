@@ -1,7 +1,8 @@
-name: Enforce Single Priority Label
+name: Enforce Single Priority and Estimate Labels
 
-# Ensures each issue has only ONE priority label
+# Ensures each issue has only ONE priority label and ONE estimate label
 # Priority labels: priority:must-have, priority:should-have, priority:could-have, priority:won't-have
+# Estimate labels: estimate:1, estimate:2, estimate:3, estimate:5, estimate:8, estimate:13, estimate:21, estimate:34, estimate:55, estimate:89
 # No transition validation (any-to-any allowed)
 
 on:
@@ -12,10 +13,10 @@ permissions:
   issues: write
 
 jobs:
-  enforce-single-priority:
+  enforce-single-priority-and-estimate:
     runs-on: ubuntu-latest
     steps:
-      - name: Enforce Single Priority Label
+      - name: Enforce Single Priority and Estimate Labels
         uses: actions/github-script@v7
         with:
           script: |
@@ -33,7 +34,7 @@ jobs:
             const labels = issue.labels.map(l => l.name);
             console.log(`Current labels: ${labels.join(', ')}`);
 
-            // Define priority labels
+            // Define priority and estimate labels
             const priorityLabels = [
               'priority:must-have',
               'priority:should-have',
@@ -41,32 +42,37 @@ jobs:
               'priority:won\'t-have'
             ];
 
+            const estimateLabels = [
+              'estimate:1', 'estimate:2', 'estimate:3', 'estimate:5', 'estimate:8',
+              'estimate:13', 'estimate:21', 'estimate:34', 'estimate:55', 'estimate:89'
+            ];
+
             // Find all priority labels on the issue
             const currentPriorityLabels = labels.filter(l => priorityLabels.includes(l));
             console.log(`Priority labels found: ${currentPriorityLabels.join(', ')}`);
 
-            // If multiple priority labels exist, keep only the most recently added one
+            // Find all estimate labels on the issue
+            const currentEstimateLabels = labels.filter(l => estimateLabels.includes(l));
+            console.log(`Estimate labels found: ${currentEstimateLabels.join(', ')}`);
+
+            const triggeredLabel = context.payload.label?.name;
+            console.log(`Triggered by label: ${triggeredLabel}`);
+
+            // Handle priority label enforcement
             if (currentPriorityLabels.length > 1) {
               console.log('Multiple priority labels detected. Enforcing mutual exclusion...');
               
-              // Determine which label was just added (from the labeled event)
-              const triggeredLabel = context.payload.label?.name;
-              console.log(`Triggered by label: ${triggeredLabel}`);
-              
               let labelToKeep;
               if (triggeredLabel && priorityLabels.includes(triggeredLabel)) {
-                // Keep the newly added label
                 labelToKeep = triggeredLabel;
               } else {
-                // Fallback: Keep the first priority label (shouldn't happen in normal flow)
                 labelToKeep = currentPriorityLabels[0];
               }
               
-              // Remove all priority labels except the one to keep
               const labelsToRemove = currentPriorityLabels.filter(l => l !== labelToKeep);
               
               for (const label of labelsToRemove) {
-                console.log(`Removing label: ${label}`);
+                console.log(`Removing priority label: ${label}`);
                 try {
                   await github.rest.issues.removeLabel({
                     owner,
@@ -79,12 +85,10 @@ jobs:
                 }
               }
               
-              // Add informative comment
               const comment = `🏷️ **Priority Label Enforcement**\n\n` +
                 `Only one priority label is allowed per issue.\n\n` +
                 `✅ Kept: \`${labelToKeep}\`\n` +
-                `❌ Removed: ${labelsToRemove.map(l => `\`${l}\``).join(', ')}\n\n` +
-                `*Priority labels: must-have, should-have, could-have, won't-have*`;
+                `❌ Removed: ${labelsToRemove.map(l => `\`${l}\``).join(', ')}`;
               
               await github.rest.issues.createComment({
                 owner,
@@ -96,4 +100,48 @@ jobs:
               console.log('Priority label enforcement complete.');
             } else {
               console.log('No priority label conflicts detected.');
+            }
+
+            // Handle estimate label enforcement
+            if (currentEstimateLabels.length > 1) {
+              console.log('Multiple estimate labels detected. Enforcing mutual exclusion...');
+              
+              let labelToKeep;
+              if (triggeredLabel && estimateLabels.includes(triggeredLabel)) {
+                labelToKeep = triggeredLabel;
+              } else {
+                labelToKeep = currentEstimateLabels[0];
+              }
+              
+              const labelsToRemove = currentEstimateLabels.filter(l => l !== labelToKeep);
+              
+              for (const label of labelsToRemove) {
+                console.log(`Removing estimate label: ${label}`);
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number,
+                    name: label
+                  });
+                } catch (error) {
+                  console.error(`Failed to remove label ${label}:`, error.message);
+                }
+              }
+              
+              const comment = `🏷️ **Estimate Label Enforcement**\n\n` +
+                `Only one estimate label is allowed per issue.\n\n` +
+                `✅ Kept: \`${labelToKeep}\`\n` +
+                `❌ Removed: ${labelsToRemove.map(l => `\`${l}\``).join(', ')}`;
+              
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: comment
+              });
+              
+              console.log('Estimate label enforcement complete.');
+            } else {
+              console.log('No estimate label conflicts detected.');
             }

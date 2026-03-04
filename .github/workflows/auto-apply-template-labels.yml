@@ -1,0 +1,152 @@
+name: Auto-Apply Template Labels
+
+# Automatically applies labels based on issue template metadata fields
+# Extracts hidden metadata (priority, estimate, blocked_by, parent_link) and:
+# - Applies corresponding labels (priority:*, estimate:*)
+# - Adds relationship labels (blocked, has-parent)
+# - Creates detailed comments with links to related issues
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  apply-template-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply Template Metadata Labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            console.log(`Processing issue #${issue_number}...`);
+
+            // Get issue details
+            const { data: issue } = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number
+            });
+
+            const issueBody = issue.body || '';
+            console.log('Issue body length:', issueBody.length);
+
+            // Extract metadata from issue body (GitHub stores form data in HTML comments)
+            const extractMetadata = (body, fieldId) => {
+              const pattern = new RegExp(`<!-- ${fieldId}: (.+?) -->`, 'm');
+              const match = body.match(pattern);
+              return match ? match[1].trim() : null;
+            };
+
+            // Also try the more common GitHub form format
+            const extractMetadataAlt = (body, fieldId) => {
+              const pattern = new RegExp(`###\\s+${fieldId}\\s*\\n\\s*(.+?)(?:\\n|$)`, 'im');
+              const match = body.match(pattern);
+              return match ? match[1].trim() : null;
+            };
+
+            // Try both extraction methods
+            const getMetadata = (body, fieldId) => {
+              return extractMetadata(body, fieldId) || extractMetadataAlt(body, fieldId);
+            };
+
+            const priority = getMetadata(issueBody, 'priority_meta') || 'should-have';
+            const estimate = getMetadata(issueBody, 'estimate_meta');
+            const blockedBy = getMetadata(issueBody, 'blocked_by_meta');
+            const parentLink = getMetadata(issueBody, 'parent_link_meta');
+
+            console.log('Extracted metadata:');
+            console.log('- Priority:', priority);
+            console.log('- Estimate:', estimate || '(none)');
+            console.log('- Blocked By:', blockedBy || '(none)');
+            console.log('- Parent Link:', parentLink || '(none)');
+
+            const labelsToAdd = [];
+            const commentsToAdd = [];
+
+            // 1. Apply priority label
+            const priorityLabel = `priority:${priority}`;
+            labelsToAdd.push(priorityLabel);
+            console.log(`Will add priority label: ${priorityLabel}`);
+
+            // 2. Apply estimate label (if provided and not empty)
+            if (estimate && estimate !== '' && estimate !== 'N/A' && estimate !== '_No response_') {
+              const estimateLabel = `estimate:${estimate}`;
+              labelsToAdd.push(estimateLabel);
+              console.log(`Will add estimate label: ${estimateLabel}`);
+            }
+
+            // 3. Handle blocked_by relationship
+            if (blockedBy && blockedBy !== '' && blockedBy !== 'N/A' && blockedBy !== '_No response_') {
+              const blockingIssueNumber = blockedBy.replace('#', '');
+              
+              try {
+                // Validate that blocking issue exists and fetch its title
+                const { data: blockingIssue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: parseInt(blockingIssueNumber)
+                });
+
+                labelsToAdd.push('blocked');
+                commentsToAdd.push(`🔗 **Blocked by:** #${blockingIssueNumber} - ${blockingIssue.title}`);
+                console.log(`Will add blocked label and comment for issue #${blockingIssueNumber}`);
+              } catch (error) {
+                console.log(`Warning: Blocking issue #${blockingIssueNumber} not found`);
+                labelsToAdd.push('blocked');
+                commentsToAdd.push(`⚠️ **Blocked by:** #${blockingIssueNumber} _(issue not found - please verify)_`);
+              }
+            }
+
+            // 4. Handle parent_link relationship
+            if (parentLink && parentLink !== '' && parentLink !== 'N/A' && parentLink !== '_No response_') {
+              const parentIssueNumber = parentLink.replace('#', '');
+              
+              try {
+                // Validate that parent issue exists and fetch its title
+                const { data: parentIssue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: parseInt(parentIssueNumber)
+                });
+
+                labelsToAdd.push('has-parent');
+                commentsToAdd.push(`🔗 **Parent issue:** #${parentIssueNumber} - ${parentIssue.title}`);
+                console.log(`Will add has-parent label and comment for issue #${parentIssueNumber}`);
+              } catch (error) {
+                console.log(`Warning: Parent issue #${parentIssueNumber} not found`);
+                labelsToAdd.push('has-parent');
+                commentsToAdd.push(`⚠️ **Parent issue:** #${parentIssueNumber} _(issue not found - please verify)_`);
+              }
+            }
+
+            // Apply all labels
+            if (labelsToAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number,
+                labels: labelsToAdd
+              });
+              console.log(`✅ Applied ${labelsToAdd.length} label(s): ${labelsToAdd.join(', ')}`);
+            }
+
+            // Add all comments (combine into one comment for cleaner output)
+            if (commentsToAdd.length > 0) {
+              const combinedComment = commentsToAdd.join('\n\n');
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: combinedComment
+              });
+              console.log(`✅ Added comment with ${commentsToAdd.length} relationship link(s)`);
+            }
+
+            console.log('✅ Template metadata processing complete!');

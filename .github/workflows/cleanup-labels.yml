@@ -6,6 +6,7 @@ name: Cleanup Labels
 # - Only one status label per issue
 # - Only one priority label per issue
 # - Only one type label per issue
+# - Only one estimate label per issue
 # - All open issues have a status label
 
 on:
@@ -62,6 +63,11 @@ jobs:
               'type:revert',
               'type:chore',
               'type:style'
+            ];
+
+            const estimateLabels = [
+              'estimate:1', 'estimate:2', 'estimate:3', 'estimate:5', 'estimate:8',
+              'estimate:13', 'estimate:21', 'estimate:34', 'estimate:55', 'estimate:89'
             ];
 
             // Get all open issues
@@ -162,6 +168,27 @@ jobs:
                 }
                 
                 violations.push(`Multiple type labels (kept ${labelToKeep}, removed ${labelsToRemove.join(', ')})`);
+                issueModified = true;
+              }
+              
+              // Check estimate labels
+              const currentEstimateLabels = labels.filter(l => estimateLabels.includes(l));
+              if (currentEstimateLabels.length > 1) {
+                console.log(`  ⚠️  Multiple estimate labels: ${currentEstimateLabels.join(', ')}`);
+                const labelToKeep = currentEstimateLabels[0];
+                const labelsToRemove = currentEstimateLabels.slice(1);
+                
+                for (const label of labelsToRemove) {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    name: label
+                  });
+                  console.log(`  ❌ Removed: ${label}`);
+                }
+                
+                violations.push(`Multiple estimate labels (kept ${labelToKeep}, removed ${labelsToRemove.join(', ')})`);
                 issueModified = true;
               }
               
