@@ -49,14 +49,14 @@ body:
     attributes:
       label: Blocked By
       description: "Issue number that blocks this (e.g., #123)"
-      placeholder: ""
+      placeholder: "Enter the blocking issue number"
 
   - type: input
     id: parent_link_meta
     attributes:
       label: Parent Issue
       description: "Parent issue number (e.g., #456)"
-      placeholder: ""
+      placeholder: "Enter the parent issue number"
 
   - type: markdown
     attributes:
