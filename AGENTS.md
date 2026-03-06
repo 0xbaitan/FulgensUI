@@ -933,6 +933,280 @@ Example: `feature/123-add-button`
 - **Color mismatches**: Designer agent proposes new tokens or maps to existing
 - **Low contrast**: Designer agent calculates ratios and flags WCAG failures
 
+## Manager Agent (@manager)
+
+The @manager agent is a SCRUM specialist that helps create atomic, well-refined GitHub issue tickets through conversational refinement.
+
+### When to Use @manager
+
+Use @manager when you need to:
+
+- Create a new GitHub issue (bug, story, epic, task, or item)
+- Refine issue requirements through conversation
+- Break down large features into atomic tickets
+- Ensure issues follow SCRUM best practices
+- Get help with acceptance criteria and edge cases
+
+### Quick Start
+
+**Create a bug:**
+
+```
+@manager I found a bug where the button hover state doesn't work in dark mode
+```
+
+**Create a story:**
+
+```
+@manager Create a story for adding keyboard navigation to the dropdown component
+```
+
+**Create an epic:**
+
+```
+@manager I want to create an epic for building a complete form system
+```
+
+### How @manager Works
+
+1. **Conversation-based refinement**: Ask questions to gather all necessary details
+2. **Proactive guidance**: Suggests edge cases, testing criteria, accessibility considerations
+3. **Atomicity enforcement**: Detects when tickets are too large and suggests breakdown
+4. **Conciseness enforcement**: Keeps tickets short and focused (<120 char titles, <500 char sections)
+5. **GitHub integration**: Generates specs with all labels and project field metadata
+6. **Session persistence**: Saves conversation history for later restoration
+
+### Invocation Patterns
+
+**With type specified:**
+
+```
+@manager bug: Button hover doesn't work
+@manager story: Add dark mode support
+@manager task: Refactor button recipe
+@manager epic: Build design system foundation
+```
+
+**General (type determined from conversation):**
+
+```
+@manager I need to create an issue for...
+```
+
+### Issue Types
+
+#### Bug
+
+For defects or incorrect behavior:
+
+- **Structure**: Feature, Scenario, Expected/Actual behavior, Environment
+- **Acceptance Criteria**: Checklist of verification steps
+- **Required**: Reproduction steps, environment details
+
+#### Story
+
+For user-facing features:
+
+- **Structure**: User story, Acceptance criteria (Gherkin), Background
+- **Acceptance Criteria**: Gherkin scenarios (Given/When/Then)
+- **Required**: Clear user goal and persona
+
+#### Epic
+
+For large initiatives (no implementation details):
+
+- **Structure**: Goal, Stakeholder, Scope, Milestones
+- **Acceptance Criteria**: High-level success criteria
+- **Note**: Epics don't have subtasks; create separate items instead
+
+#### Task
+
+For technical/internal work:
+
+- **Structure**: Technical context, Implementation approach, Dependencies, Test criteria
+- **Acceptance Criteria**: Checklist of completion criteria
+- **Required**: Clear technical scope
+
+#### Item
+
+For small, atomic work units:
+
+- **Structure**: Description, Acceptance criteria, Notes
+- **Acceptance Criteria**: Simple checklist
+- **Use when**: Breaking down epics, small enhancements, simple fixes
+
+### Atomicity & Breakdown
+
+@manager enforces atomic tickets using these rules:
+
+**Triggers for breakdown:**
+
+- More than 8 subtasks needed
+- Multiple components affected ("all components", "entire app")
+- Sections exceed 500 characters
+- Multiple user personas or scenarios
+- Cross-cutting concerns (e.g., "add feature X to all pages")
+
+**When breakdown suggested:**
+
+- @manager recommends creating an Epic + separate Items
+- Each item should be independently implementable
+- Items use `has-parent` label to link to epic
+
+### Conciseness Rules
+
+**Strict limits:**
+
+- Title: Max 120 characters
+- Sections: Max 500 characters each
+- Subtasks: Max 8 items
+- If exceeded, @manager suggests splitting
+
+**Writing style:**
+
+- Active voice, present tense
+- No filler words or preamble
+- Bullet points over paragraphs
+- Code examples when helpful
+
+### Session Management
+
+**Auto-save:**
+
+- Every conversation is saved to `.temp/issues/sessions/{session_id}.json`
+- Includes all messages, metadata, and spec path
+- Persists until explicitly archived
+
+**Restore a session:**
+
+```bash
+/restore-session --list                    # List all sessions
+/restore-session 20260306_123456          # Restore specific session
+```
+
+**Session includes:**
+
+- Full conversation history
+- Current issue type and phase
+- Attachments (screenshots, logs)
+- Draft spec path
+
+### GitHub Integration
+
+**Spec output:**
+
+- Saved to `.temp/issues/specs/{timestamp}_{type}_{title}.md`
+- Contains frontmatter with all metadata
+- Includes GitHub metadata comment for `/create-issue`
+
+**Creating the issue:**
+
+```bash
+/create-issue .temp/issues/specs/20260306_123456_button-bug.md
+/create-issue <file> --dry-run            # Preview without creating
+```
+
+**Labels automatically applied:**
+
+- `status:backlog` (initial status)
+- `issue:{type}` (bug, story, epic, task, item)
+- `priority:{level}` (must-have, should-have, could-have, won't-have)
+- `estimate:{points}` (Fibonacci: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89)
+- `scope:{package}` (core, docsite, none)
+- `blocked` (if blocked_by is set)
+- `has-parent` (if parent_link is set)
+
+**Project fields populated:**
+
+- Status: Todo
+- Priority: From frontmatter
+- Story points: From estimate
+- Issue type: From frontmatter
+
+### Attachments
+
+**Request attachments:**
+
+- @manager proactively asks for screenshots, logs, recordings
+- Saves to `.temp/issues/attachments/{session_id}/`
+- References in spec body
+
+**Supported formats:**
+
+- Images: PNG, JPG, GIF (for UI bugs)
+- Videos: MP4, MOV (for repro steps)
+- Logs: TXT, JSON (for errors)
+
+### Examples
+
+See `.opencode/examples/manager/` for:
+
+- `bug-button-hover.md` - Bug ticket example
+- `story-dark-mode.md` - Story with Gherkin criteria
+- `epic-design-system.md` - Epic with milestones
+- `README.md` - Conversation flow examples
+
+### Workflow Integration
+
+**With feature branches:**
+
+```
+1. Create branch: feature/123-dark-mode
+2. @manager Create a story for dark mode support
+3. [Refine through conversation]
+4. /create-issue .temp/issues/specs/...
+5. Implement feature
+6. Reference issue in commit: "feat(theme): implement dark mode (#123)"
+```
+
+**With designer agent:**
+
+```
+1. @designer Read Penpot design for Button component
+2. [Designer creates planning doc]
+3. @manager Create a story for implementing the Button component
+4. [Reference planning doc in story background]
+5. /create-issue <spec>
+```
+
+### Tips
+
+**For best results:**
+
+- Provide context upfront (component name, user goal, environment)
+- Share screenshots/logs proactively
+- Answer questions completely
+- Review generated spec before creating issue
+- Use `--dry-run` to preview
+
+**Common patterns:**
+
+- Break large features into Epic + Items (not monolithic stories)
+- Use Stories for user-facing features, Tasks for internal work
+- Keep Items small (1-3 story points ideal)
+- Always include test criteria in acceptance criteria
+
+### Configuration
+
+**Metadata files:**
+
+- `.opencode/agents/manager.md` - Agent definition
+- `.opencode/config/manager/core-rules.yaml` - Base behavior
+- `.opencode/config/manager/github-metadata.yaml` - Labels/fields
+- `.opencode/config/manager/conciseness-rules.yaml` - Length limits
+
+**Type-specific rules:**
+
+- `.opencode/prompts/manager/bug-rules.md`
+- `.opencode/prompts/manager/story-rules.md`
+- `.opencode/prompts/manager/epic-rules.md`
+- `.opencode/prompts/manager/task-rules.md`
+- `.opencode/prompts/manager/item-rules.md`
+
+**Templates:**
+
+- `.opencode/templates/manager/spec-{type}.md`
+
 ## Additional Notes
 
 - Uses Bun as package manager (>= 1.3.0)

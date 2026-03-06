@@ -1,0 +1,97 @@
+# GitHub Metadata Configuration
+# Source: .github/labels.yml + GitHub Project #9
+# Used by manager to generate metadata for git agent
+
+version: 1.0
+
+# Repository
+repository:
+  owner: "0xbaitan"
+  name: "FulgensUI"
+
+# GitHub Project #9
+project:
+  id: "PVT_kwHOAeQxRM4BQVim"
+  name: "FulgensUI"
+  url: "https://github.com/users/0xbaitan/projects/9"
+
+  # Project Field IDs
+  fields:
+    status_id: "PVTSSF_lAHOAeQxRM4BQVimzg-fIIo"
+    priority_id: "PVTSSF_lAHOAeQxRM4BQVimzg-fsa4"
+    story_points_id: "PVTF_lAHOAeQxRM4BQVimzg-fxsg"
+    issue_type_id: "PVTSSF_lAHOAeQxRM4BQVimzg-gKWI"
+
+# Label Mappings (mutually exclusive groups)
+labels:
+  # Issue Type (prefix: issue:)
+  issue_type:
+    bug: "issue:bug"
+    story: "issue:story"
+    epic: "issue:epic"
+    task: "issue:task"
+    item: "issue:item"
+
+  # Priority (prefix: priority:)
+  priority:
+    must-have: "priority:must-have"
+    should-have: "priority:should-have"
+    could-have: "priority:could-have"
+    won't-have: "priority:won't-have"
+
+  # Status (prefix: status:) - Default initial state
+  status:
+    default: "status:backlog"
+    backlog: "status:backlog"
+    ready: "status:ready"
+    development: "status:development"
+    review: "status:review"
+    qa: "status:qa"
+    defect: "status:defect"
+    done: "status:done"
+
+  # Estimate (prefix: estimate:)
+  estimate:
+    values: [1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
+    format: "estimate:{value}"
+
+  # Scope (prefix: scope:) - Optional
+  scope:
+    core: "scope:core"
+    docsite: "scope:docsite"
+    none: "scope:none"
+
+  # Relationship - Optional, NOT mutually exclusive
+  relationship:
+    blocked: "blocked"
+    has-parent: "has-parent"
+
+# Project Field Value IDs
+field_values:
+  # Status options
+  status:
+    todo: "f75ad846"
+    in_progress: "47fc9ee4"
+    done: "98236657"
+
+  # Priority options
+  priority:
+    must-have: "a76e54fc"
+    should-have: "0aafcd8f"
+    could-have: "c6de7461"
+    won't-have: "808b8ca6"
+
+  # Issue Type options
+  issue_type:
+    story: "d2a6d334"
+    bug: "251c6465"
+    epic: "d895a262"
+    task: "1bc4fa51"
+    item: "6f19c456"
+
+# Default Values
+defaults:
+  status: "backlog"
+  status_id: "f75ad846" # Todo
+  priority: "should-have"
+  priority_id: "0aafcd8f" # Should have

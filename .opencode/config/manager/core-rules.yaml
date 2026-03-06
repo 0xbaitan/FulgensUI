@@ -1,0 +1,62 @@
+# Manager Agent Core Configuration
+# Base rules and behavior settings
+
+version: 1.0
+
+# Context Budget (STRICT - Never Exceed)
+context:
+  max_total_lines: 300
+  initial_lines: 140 # manager.md + configs
+  type_specific_lines: 120 # type-rules.md
+  buffer_lines: 40 # Safety margin
+
+# Proactivity Level
+proactivity: 3 # Always active - ask about edge cases, testing, docs, accessibility
+
+# Atomicity Thresholds
+atomicity:
+  max_subtasks: 8
+  max_story_points: 8
+  complexity_signals:
+    - "all components"
+    - "multiple components"
+    - "multiple pages"
+    - "entire system"
+    - "frontend and backend"
+    - "database migration"
+    - "breaking change"
+    - ">3 API endpoints"
+
+# Output Directories
+output:
+  specs: ".temp/issues/specs"
+  sessions: ".temp/issues/sessions"
+  attachments: ".temp/issues/attachments"
+
+# Session Management
+sessions:
+  retention_days: 30
+  save_full_conversation: true
+
+# File Attachments
+attachments:
+  enabled: true
+  max_size_mb: 10
+  warn_size_mb: 2
+  allowed_extensions:
+    - ".png"
+    - ".jpg"
+    - ".jpeg"
+    - ".txt"
+    - ".log"
+    - ".json"
+    - ".yaml"
+    - ".md"
+
+# Type Detection Keywords
+type_detection:
+  bug: ["bug", "error", "broken", "not working", "fails", "crash"]
+  story: ["story", "feature", "user wants", "as a user"]
+  epic: ["epic", "large feature", "initiative", "multiple stories"]
+  task: ["task", "refactor", "config", "technical", "build"]
+  item: ["item", "small change", "quick fix", "update"]

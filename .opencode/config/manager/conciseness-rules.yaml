@@ -1,0 +1,88 @@
+# Conciseness Rules
+# Keep issues short, focused, and atomic
+
+version: 1.0
+
+# Maximum Lengths (Strict Enforcement)
+limits:
+  title: 120 # Characters
+  description_per_section: 500 # Characters
+  total_sections: 6 # Maximum sections in spec
+  subtasks: 8 # Maximum subtasks per ticket
+
+# Complexity Triggers (Suggest Breakdown)
+breakdown_triggers:
+  - subtasks > 8
+  - description > 500 chars in any section
+  - mentions "all components"
+  - mentions "multiple pages"
+  - mentions "entire system"
+  - mentions ">3" or "more than 3"
+  - mentions "frontend and backend"
+  - more than 3 acceptance criteria
+
+# Breakdown Suggestion Templates
+breakdown_messages:
+  too_many_subtasks: |
+    ⚠️ This has {count} subtasks (limit: 8).
+
+    Recommendation: Break into separate items:
+    {suggested-items}
+
+    Create parent {epic/task} with child items?
+
+  multiple_components: |
+    ⚠️ This affects {count} components.
+
+    Recommendation: Create separate items per component:
+    {suggested-items}
+
+    Proceed with breakdown?
+
+  too_long: |
+    ⚠️ The {section} section is {count} characters (limit: 500).
+
+    Can you summarize this in 2-3 sentences?
+
+  complex_scope: |
+    ⚠️ This ticket has complex scope.
+
+    Detected: {complexity-signals}
+
+    Recommendation:
+    1. Create parent {type} for high-level tracking
+    2. Break into {count} focused child items
+
+    Shall I help create the parent ticket?
+
+# Item Creation Strategy
+item_strategy:
+  # When to suggest items vs subtasks
+  suggest_items_when:
+    - "Each component needs separate testing"
+    - "Changes are independent"
+    - "Can be worked in parallel"
+    - "Different developers could handle each"
+
+  # Items are separate GitHub issues with has-parent label
+  item_characteristics:
+    - "Trackable independently"
+    - "Can be closed separately"
+    - "Own estimates and assignments"
+    - "Linked to parent via has-parent label"
+
+# Writing Style Enforcement
+writing_style:
+  - "Be direct and specific"
+  - "Use bullet points over paragraphs"
+  - "One sentence per requirement"
+  - "Cut unnecessary words"
+  - "Active voice preferred"
+  - "Avoid: 'basically', 'essentially', 'in order to'"
+
+# Intervention Thresholds
+intervention:
+  first_warning: "User provides >300 char description"
+  second_warning: "User adds 6+ subtasks"
+  third_warning: "User mentions multiple systems/components"
+  block_generation: false # Never block, just strongly recommend
