@@ -6,57 +6,28 @@ body:
   - type: markdown
     attributes:
       value: |
-        ---
-        ## ⚙️ Metadata Fields
+        <details>
+        <summary>✅ <b>Issue Reporting Instructions</b> (click to expand)</summary>
 
-        The following fields are used to automatically apply labels to this issue.
-        They will **not** appear in the issue description.
+        After creating this issue, configure the following in the GitHub UI:
 
-  - type: dropdown
-    id: priority_meta
-    attributes:
-      label: Priority
-      description: "MoSCoW priority for this issue"
-      options:
-        - must-have
-        - should-have
-        - could-have
-        - won't-have
-      default: 1
-    validations:
-      required: true
+        **Labels:** Filter by prefixes: `priority:*`, `estimate:*`, `scope:*`, `issue:*`, `status:*`, `blocked`, `has-parent`
 
-  - type: dropdown
-    id: estimate_meta
-    attributes:
-      label: Estimate
-      description: "Story points (Fibonacci sequence) - optional"
-      options:
-        - ""
-        - "1"
-        - "2"
-        - "3"
-        - "5"
-        - "8"
-        - "13"
-        - "21"
-        - "34"
-        - "55"
-        - "89"
+        **Project Fields:**
+        - **Status:** Set workflow state (Todo, In Progress, Done)
+        - **Priority:** MoSCoW level (must-have, should-have, could-have, won't-have)
+        - **Estimate:** Story points - Fibonacci (1, 2, 3, 5, 8, 13, 21, 34, 55, 89)
+        - **Start Date:** Planned or actual start date
+        - **End Date:** Target or actual completion date
+        - **Sprint/Iteration:** Assign to sprint cycle
+        - **Assignee:** Set responsible person
+        - **Epic Link:** Link parent epic for child issues
+        - **Blocked By:** Reference blocking issues (e.g., #123)
+        - **Milestone:** Associate with release milestone
+        - **Components:** Tag affected packages or modules
+        - **Reviewers:** Request specific reviewers
 
-  - type: input
-    id: blocked_by_meta
-    attributes:
-      label: Blocked By
-      description: "Issue number that blocks this (e.g., #123)"
-      placeholder: "Enter the blocking issue number"
-
-  - type: input
-    id: parent_link_meta
-    attributes:
-      label: Parent Issue
-      description: "Parent issue number (e.g., #456)"
-      placeholder: "Enter the parent issue number"
+        </details>
 
   - type: markdown
     attributes:
@@ -78,25 +49,25 @@ body:
     attributes:
       label: Implementation Approach
       description: "How to approach the task"
-      placeholder: "N/A"
+      placeholder: "Proposed technical approach or solution strategy"
 
   - type: textarea
     id: dependencies
     attributes:
       label: Dependencies
       description: "What is needed"
-      placeholder: "N/A"
+      placeholder: "Required libraries, APIs, or prerequisite issues"
 
   - type: textarea
     id: test_criteria
     attributes:
       label: Test Criteria
       description: "How to verify completion"
-      placeholder: "N/A"
+      placeholder: "How to verify completion and test scenarios"
 
   - type: textarea
     id: subtasks
     attributes:
       label: Subtasks
       description: "Checklist items to complete (optional, max 15)"
-      placeholder: "- [ ] Task 1&#10;- [ ] Task 2&#10;- [ ] Task 3"
+      placeholder: "- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3"

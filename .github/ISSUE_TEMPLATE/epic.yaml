@@ -6,57 +6,28 @@ body:
   - type: markdown
     attributes:
       value: |
-        ---
-        ## ⚙️ Metadata Fields
+        <details>
+        <summary>✅ <b>Issue Reporting Instructions</b> (click to expand)</summary>
 
-        The following fields are used to automatically apply labels to this issue.
-        They will **not** appear in the issue description.
+        After creating this issue, configure the following in the GitHub UI:
 
-  - type: dropdown
-    id: priority_meta
-    attributes:
-      label: Priority
-      description: "MoSCoW priority for this issue"
-      options:
-        - must-have
-        - should-have
-        - could-have
-        - won't-have
-      default: 1
-    validations:
-      required: true
+        **Labels:** Filter by prefixes: `priority:*`, `estimate:*`, `scope:*`, `issue:*`, `status:*`, `blocked`, `has-parent`
 
-  - type: dropdown
-    id: estimate_meta
-    attributes:
-      label: Estimate
-      description: "Story points (Fibonacci sequence) - optional"
-      options:
-        - ""
-        - "1"
-        - "2"
-        - "3"
-        - "5"
-        - "8"
-        - "13"
-        - "21"
-        - "34"
-        - "55"
-        - "89"
+        **Project Fields:**
+        - **Status:** Set workflow state (Todo, In Progress, Done)
+        - **Priority:** MoSCoW level (must-have, should-have, could-have, won't-have)
+        - **Estimate:** Story points - Fibonacci (1, 2, 3, 5, 8, 13, 21, 34, 55, 89)
+        - **Start Date:** Planned or actual start date
+        - **End Date:** Target or actual completion date
+        - **Sprint/Iteration:** Assign to sprint cycle
+        - **Assignee:** Set responsible person
+        - **Epic Link:** Link parent epic for child issues
+        - **Blocked By:** Reference blocking issues (e.g., #123)
+        - **Milestone:** Associate with release milestone
+        - **Components:** Tag affected packages or modules
+        - **Reviewers:** Request specific reviewers
 
-  - type: input
-    id: blocked_by_meta
-    attributes:
-      label: Blocked By
-      description: "Issue number that blocks this (e.g., #123)"
-      placeholder: "Enter the blocking issue number"
-
-  - type: input
-    id: parent_link_meta
-    attributes:
-      label: Parent Issue
-      description: "Parent issue number (e.g., #456)"
-      placeholder: "Enter the parent issue number"
+        </details>
 
   - type: markdown
     attributes:
@@ -96,7 +67,7 @@ body:
     attributes:
       label: Scope & Deliverables
       description: "What is included/excluded"
-      placeholder: "In:&#10;- Item 1&#10;- Item 2&#10;&#10;Out:&#10;- Item 3"
+      placeholder: "In:\n- Item 1\n- Item 2\n\nOut:\n- Item 3"
     validations:
       required: true
 
@@ -105,11 +76,17 @@ body:
     attributes:
       label: Milestones
       description: "Key milestones"
-      placeholder: "N/A"
+      placeholder: "Phase 1: Description\nPhase 2: Description"
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        **Note:** Epics should only contain **Stories** and **Tasks**, not Items. Items are atomic units that should be children of Stories or Tasks.
 
   - type: textarea
     id: subtasks
     attributes:
       label: Child Issues
       description: "Child stories/tasks to create (optional, max 15)"
-      placeholder: "- [ ] Story: User can...&#10;- [ ] Task: Implement API..."
+      placeholder: "- [ ] Story: User can...\n- [ ] Task: Implement API..."
