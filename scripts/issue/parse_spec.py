@@ -45,7 +45,7 @@ GITHUB_METADATA = {
 
 
 def parse_frontmatter(content: str) -> Dict[str, str]:
-    """Extract YAML frontmatter from markdown content."""
+    """Extract YAML frontmatter from markdown content (top-level fields only)."""
     if not content.startswith('---'):
         return {}
     
@@ -61,12 +61,38 @@ def parse_frontmatter(content: str) -> Dict[str, str]:
     
     fm_content = '\n'.join(lines[1:end_idx])
     result = {}
+    in_nested_block = False
     
     for line in fm_content.split('\n'):
-        line = line.strip()
-        if ':' in line:
-            key, value = line.split(':', 1)
-            result[key.strip()] = value.strip()
+        stripped = line.strip()
+        
+        # Skip empty lines and comments
+        if not stripped or stripped.startswith('#'):
+            continue
+        
+        # Detect nested blocks (lines ending with ':' and no value)
+        if ':' in line and line.rstrip().endswith(':'):
+            in_nested_block = True
+            continue
+        
+        # Skip lines that are part of nested blocks (indented)
+        if in_nested_block and (line.startswith('  ') or line.startswith('\t')):
+            continue
+        
+        # Reset nested block flag when we hit a non-indented line
+        if in_nested_block and not (line.startswith('  ') or line.startswith('\t')):
+            in_nested_block = False
+        
+        # Parse key-value pairs
+        if ':' in stripped:
+            key, value = stripped.split(':', 1)
+            value = value.strip()
+            # Remove surrounding quotes if present
+            if value.startswith('"') and value.endswith('"'):
+                value = value[1:-1]
+            elif value.startswith("'") and value.endswith("'"):
+                value = value[1:-1]
+            result[key.strip()] = value
     
     return result
 
@@ -87,6 +113,33 @@ def extract_body(content: str) -> str:
         return content
     
     return '\n'.join(lines[end_idx + 1:]).strip()
+
+
+def extract_scope_from_content(content: str) -> Optional[str]:
+    """Extract scope value from github.labels array in frontmatter."""
+    if not content.startswith('---'):
+        return None
+    
+    lines = content.split('\n')
+    in_labels_section = False
+    
+    for line in lines:
+        if line.strip() == '---':
+            if in_labels_section:
+                break  # Exit frontmatter
+        
+        if 'labels:' in line and line.strip().endswith(':'):
+            in_labels_section = True
+            continue
+        
+        if in_labels_section:
+            # Check if this is a label line
+            if line.strip().startswith('- '):
+                label = line.strip()[2:].strip('"\'')
+                if label.startswith('scope:'):
+                    return label.split(':', 1)[1]
+    
+    return None
 
 
 def extract_github_metadata(content: str) -> Optional[Dict]:
@@ -142,12 +195,12 @@ def get_issue_type_field_value(issue_type: str) -> Optional[str]:
     return GITHUB_METADATA["field_values"]["issue_type"].get(issue_type.lower())
 
 
-def build_labels(frontmatter: Dict) -> List[str]:
+def build_labels(frontmatter: Dict, scope_from_content: Optional[str] = None) -> List[str]:
     """Build list of GitHub labels from frontmatter."""
     labels = ["status:backlog"]  # Always include initial status
     
-    # Add issue type label
-    issue_type = frontmatter.get('issue_type', '')
+    # Add issue type label (support both 'type' and 'issue_type' fields)
+    issue_type = frontmatter.get('type', '') or frontmatter.get('issue_type', '')
     if issue_type:
         labels.append(f"issue:{normalize_issue_type(issue_type)}")
     
@@ -161,8 +214,8 @@ def build_labels(frontmatter: Dict) -> List[str]:
     if estimate and estimate != 'null':
         labels.append(f"estimate:{estimate}")
     
-    # Add scope label
-    scope = frontmatter.get('scope', '')
+    # Add scope label (prefer top-level, fallback to extracted from github.labels)
+    scope = frontmatter.get('scope', '') or scope_from_content
     if scope and scope != 'null':
         labels.append(f"scope:{scope}")
     
@@ -171,8 +224,8 @@ def build_labels(frontmatter: Dict) -> List[str]:
     if blocked_by and blocked_by != 'null':
         labels.append("blocked")
     
-    # Add has-parent label
-    parent_link = frontmatter.get('parent_link', '')
+    # Add has-parent label (support both 'parent_issue' and 'parent_link' fields)
+    parent_link = frontmatter.get('parent_issue', '') or frontmatter.get('parent_link', '')
     if parent_link and parent_link != 'null':
         labels.append("has-parent")
     
@@ -193,8 +246,8 @@ def build_project_fields(frontmatter: Dict) -> Dict[str, str]:
         if priority_id:
             fields[GITHUB_METADATA["field_ids"]["priority"]] = priority_id
     
-    # Issue type
-    issue_type = frontmatter.get('issue_type', '')
+    # Issue type (support both 'type' and 'issue_type' fields)
+    issue_type = frontmatter.get('type', '') or frontmatter.get('issue_type', '')
     if issue_type:
         type_id = get_issue_type_field_value(issue_type)
         if type_id:
@@ -226,15 +279,18 @@ def parse_spec(file_path: str) -> Dict:
     
     frontmatter = parse_frontmatter(content)
     body = extract_body(content)
+    scope_from_content = extract_scope_from_content(content)
     
-    # Remove GitHub metadata comment from body
-    body = re.sub(r'<!-- GITHUB_METADATA\n.*?\n-->\n*', '', body, flags=re.DOTALL)
+    # Remove GitHub metadata comment section from body (everything after the comment marker)
+    # Pattern matches: --- followed by <!-- GitHub Metadata ... --> or <!--\nGitHub Metadata\n...\n-->
+    body = re.sub(r'\n---\s*\n+<!--\s*GitHub Metadata.*$', '', body, flags=re.DOTALL)
+    body = re.sub(r'\n+<!--\s*GitHub Metadata.*$', '', body, flags=re.DOTALL)
     
     # Build output
     result = {
         "title": frontmatter.get('title', ''),
         "body": body.strip(),
-        "labels": build_labels(frontmatter),
+        "labels": build_labels(frontmatter, scope_from_content),
         "project_id": GITHUB_METADATA["project_id"],
         "project_fields": build_project_fields(frontmatter)
     }
@@ -244,7 +300,8 @@ def parse_spec(file_path: str) -> Dict:
     if blocked_by and blocked_by != 'null':
         result["blocked_by"] = blocked_by
     
-    parent_link = frontmatter.get('parent_link', '')
+    # Support both 'parent_issue' and 'parent_link' fields
+    parent_link = frontmatter.get('parent_issue', '') or frontmatter.get('parent_link', '')
     if parent_link and parent_link != 'null':
         result["parent_link"] = parent_link
     
