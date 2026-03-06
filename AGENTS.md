@@ -776,7 +776,7 @@ The coder agent will:
 
 ❌ Write TypeScript/React code  
 ❌ Run builds, tests, or git operations  
-❌ Modify Penpot files  
+❌ Modify Penpot shapes or design elements  
 ❌ Install dependencies  
 ❌ Commit files
 
@@ -788,7 +788,69 @@ The coder agent will:
 ✅ Export assets (PNG, SVG)  
 ✅ Generate markdown planning documents  
 ✅ Calculate accessibility metrics  
-✅ Propose new tokens when needed
+✅ Propose new tokens when needed  
+✅ Write design tokens to Penpot (with user permission)  
+✅ Create token sets and themes in Penpot  
+✅ Sync PandaCSS tokens to Penpot catalog
+
+### Token Synchronization
+
+The designer agent can sync design tokens between PandaCSS and Penpot:
+
+**Workflow:**
+
+1. Designer agent extracts colors/values from Penpot design
+2. Compares against PandaCSS config (`packages/core/src/config/base/colors.ts`)
+3. Identifies missing tokens in Penpot
+4. Asks user permission to create tokens
+5. Executes token creation via Penpot MCP server
+6. Verifies creation and documents results in planning doc section 3.5
+
+**User approval required:**
+
+- Designer agent always asks before creating/modifying tokens
+- User can approve, decline, or request to see code first
+- Valid responses: "yes", "create them", "show me the code first", "skip"
+
+**Source of truth:**
+
+- PandaCSS config is authoritative
+- Tokens sync FROM PandaCSS TO Penpot
+- Penpot-only tokens are informational (not synced back)
+
+**Token organization:**
+
+- All tokens in single set: `FulgensUI`
+- Hierarchical naming: `colors/primary/500`, `spacing/md`, etc.
+- Theme support: `FulgensUI/Light`, `FulgensUI/Dark`, custom themes
+
+**Error handling:**
+
+- If token creation fails, document in planning doc
+- Continue with rest of planning process
+- User can manually create tokens or retry later
+
+**Example workflow:**
+
+```
+Designer: I analyzed the Button component and found 3 colors used.
+          Token status:
+          ✅ #3B82F6 exists in Penpot as colors/primary/500
+          ❌ #2563EB missing from Penpot (PandaCSS has blue.600)
+          ❌ #1E40AF missing from Penpot (PandaCSS has blue.800)
+
+          Create 2 missing tokens in Penpot?
+User: yes, create them
+Designer: ✅ Created colors/primary/600 and colors/primary/800
+          Token set "FulgensUI" is now active
+          Updated planning document with sync status
+```
+
+**Documentation:**
+
+- [Token Sync Examples](specs/examples/token-sync/README.md)
+- [Code Snippets](specs/examples/token-sync/code-snippets.md)
+- [Designer Agent Config](.opencode/agents/designer.md#token-synchronization-workflow)
 
 ### Planning Document Structure
 
@@ -797,6 +859,7 @@ Every planning document includes:
 1. **Component Overview** - Purpose, Penpot reference
 2. **File Structure** - Exact paths and naming conventions
 3. **Design Tokens** - Color, spacing, typography mappings
+   3.5. **Token Synchronization** - Penpot token sync status and results
 4. **PandaCSS Recipe** - Complete recipe specification
 5. **Component Props** - TypeScript prop types
 6. **Accessibility Requirements** - ARIA, keyboard, contrast validation

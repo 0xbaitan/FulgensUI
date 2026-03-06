@@ -52,4 +52,5 @@ styled-system
 logs/**
 node_modules
 
-specs/
+specs/*
+!specs/examples/
