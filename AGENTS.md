@@ -670,6 +670,457 @@ When asked to commit changes, the git subagent should:
 - Integration/breaking changes: Run full test suite
 - Ask user if unsure about required test scope
 
+## Pull Request Templates
+
+FulgensUI provides specialized PR templates that integrate with the issue system, CI pipeline, agent workflow, and label automation.
+
+### Available Templates
+
+The repository includes **6 specialized templates** plus a default fallback:
+
+1. **feature.md** - New features (`type:feat`) - Most comprehensive
+2. **bugfix.md** - Bug fixes (`type:fix`) - Reproduction-focused
+3. **docs.md** - Documentation (`type:docs`) - Lightweight
+4. **refactor.md** - Refactoring (`type:refactor`) - Moderate
+5. **performance.md** - Performance improvements (`type:perf`) - Metrics-focused
+6. **chore.md** - Maintenance (`type:chore`, `type:build`, `type:ci`, `type:test`) - Minimal
+7. **pull_request_template.md** (default) - General-purpose fallback
+
+**Location:** `.github/PULL_REQUEST_TEMPLATE/`
+
+### Usage
+
+#### Via URL Parameter (Recommended)
+
+When creating a PR via GitHub UI, append `?template={name}` to the URL:
+
+```
+https://github.com/0xbaitan/FulgensUI/compare/main...feat/123?template=feature.md
+https://github.com/0xbaitan/FulgensUI/compare/main...fix/456?template=bugfix.md
+```
+
+#### Via GitHub CLI
+
+```bash
+gh pr create --template .github/PULL_REQUEST_TEMPLATE/feature.md
+gh pr create --template .github/PULL_REQUEST_TEMPLATE/bugfix.md
+```
+
+#### Default Template
+
+If no `?template=` parameter is specified, GitHub loads `.github/pull_request_template.md` (uses feature.md content).
+
+### Template Structure
+
+All templates include these common sections:
+
+#### 1. Type & Summary
+
+- Checkbox for PR type (feat, fix, docs, etc.)
+- One-line summary (max 120 chars)
+- Aligns with conventional commit format
+
+#### 2. Related Issues
+
+- Auto-close syntax: `Closes #123`, `Fixes #456`
+- Links to GitHub issues
+- Triggers auto-close on merge
+
+#### 3. Breaking Changes
+
+- Detection of breaking changes
+- Migration guide for users
+- Versioning impact (MAJOR vs MINOR bump)
+
+#### 4. Changes Section
+
+- Component files affected
+- PandaCSS recipes/tokens modified
+- Storybook stories added
+- Template-specific (varies by type)
+
+#### 5. CI Validation Checklist
+
+Mirrors the exact `bun run ci:all` pipeline:
+
+```markdown
+- [ ] ✅ PandaCSS Generation (`bun run ci:panda`)
+- [ ] ✅ ESLint (`bun run ci:lint`)
+- [ ] ✅ TypeScript (`bun run ci:type-check`)
+- [ ] ✅ Tests with Coverage (`bun run ci:test:coverage`)
+- [ ] ✅ Build (`bun run ci:build`)
+- [ ] ✅ Storybook Build (`bun run ci:build-storybook`)
+```
+
+**Note:** Coverage thresholds are DISABLED, but metrics are still informative.
+
+#### 6. Testing Details
+
+- Coverage metrics (optional/informational)
+- Test cases implemented
+- Manual testing performed
+- Edge cases covered
+
+#### 7. Documentation
+
+- Storybook stories added
+- README/AGENTS.md updates
+- Component exports updated
+- Storybook preview link
+
+#### 8. Agent Workflow Integration
+
+Links to agent-generated planning documents:
+
+```markdown
+**Agent workflow used:**
+
+- [ ] @architect - Created IMPLEMENTATION-PLAN.md
+- [ ] @designer - Created COMPONENT-PLAN.md (if UI)
+- [ ] @coder - Executed via TDD workflow
+
+**Specs references:**
+
+- specs/architecture/{issue}/IMPLEMENTATION-PLAN.md
+- specs/{branch}/{component}/COMPONENT-PLAN.md
+```
+
+#### 9. Visual Changes (if applicable)
+
+- Screenshots (before/after)
+- Storybook preview link
+- Responsive behavior demos
+
+#### 10. Suggested Labels
+
+Aligns with `.github/labels.yml`:
+
+```markdown
+- type:feat (or appropriate type)
+- status:review
+- estimate:X (Fibonacci: 1,2,3,5,8,13,21,34,55,89)
+- scope:core or scope:docsite
+- priority:must-have/should-have/could-have/won't-have
+```
+
+#### 11. Reviewer Checklist
+
+- TDD compliance (Red → Green → Refactor)
+- SOLID principles verification
+- Minimal changes (no scope creep)
+- Test coverage adequate
+- Architecture docs accurate
+
+#### 12. Pre-Merge Checklist
+
+- All CI checks pass
+- Approval received
+- Labels applied
+- Issue will auto-close
+
+### Template Specializations
+
+#### feature.md (Most Comprehensive)
+
+**Use for:** New components, features, capabilities
+
+**Unique sections:**
+
+- Component file structure (all files required)
+- PandaCSS recipe specification
+- Storybook story requirements
+- All variants/states documented
+
+**Typical estimate:** 5-13 points
+
+---
+
+#### bugfix.md (Reproduction-Focused)
+
+**Use for:** Bug fixes
+
+**Unique sections:**
+
+- **Reproduction steps** (step-by-step)
+- **Expected vs Actual behavior**
+- **Environment details** (browser, OS, version)
+- **Root cause analysis** (code-level explanation)
+- **Regression test requirement** (must add test)
+
+**Typical estimate:** 1-5 points
+
+---
+
+#### docs.md (Lightweight)
+
+**Use for:** Documentation-only changes
+
+**Reduced CI checks:**
+
+- Skips test coverage (optional for docs)
+- Skips Storybook build (unless docs include examples)
+
+**Unique sections:**
+
+- Type of documentation (API, usage, migration, architecture)
+- Links verified
+- Code examples tested (if applicable)
+
+**Typical estimate:** 1-2 points
+
+---
+
+#### refactor.md (Moderate)
+
+**Use for:** Code improvements without behavior change
+
+**Unique sections:**
+
+- **SOLID improvements** (which principles applied)
+- **Behavior verification** (no changes guarantee)
+- **Coverage maintained** (before/after comparison)
+- **Code metrics** (LOC reduction, complexity reduction)
+
+**Critical requirement:** All existing tests must pass without modification
+
+**Typical estimate:** 2-8 points
+
+---
+
+#### performance.md (Metrics-Focused)
+
+**Use for:** Performance optimizations
+
+**Unique sections:**
+
+- **Performance metrics** (before/after)
+  - Rendering time (ms)
+  - Bundle size (KB)
+  - User interaction latency (ms)
+  - Lighthouse scores
+- **Benchmark results** (Vitest benchmarks)
+- **Measurement method** (tools used, test environment)
+- **Optimization technique** (memoization, virtualization, code splitting, etc.)
+
+**Typical estimate:** 3-8 points
+
+---
+
+#### chore.md (Minimal)
+
+**Use for:** Dependencies, configs, build system, CI, tests
+
+**Multi-type checkbox:**
+
+- `type:chore` - Other changes
+- `type:build` - Build system
+- `type:ci` - CI/CD changes
+- `type:test` - Test changes
+
+**Unique sections:**
+
+- Dependencies updated (with versions)
+- Config changes (what and why)
+- No unintended side effects verification
+
+**Typical estimate:** 1-2 points
+
+---
+
+### Integration with Existing Workflows
+
+#### Label Automation
+
+PR templates suggest labels that align with `.github/labels.yml`:
+
+- **Status labels** - Workflow transitions (`status:review` → `status:qa` → `status:done`)
+- **Type labels** - Conventional commit types (`type:feat`, `type:fix`, etc.)
+- **Priority labels** - MoSCoW prioritization (`priority:must-have`, etc.)
+- **Estimate labels** - Fibonacci sequence (`estimate:1`, `estimate:2`, etc.)
+- **Scope labels** - Package affected (`scope:core`, `scope:docsite`)
+
+GitHub Actions enforce mutual exclusivity and validate transitions automatically.
+
+#### Agent Workflow
+
+Templates reference agent outputs:
+
+1. **@manager** - Creates GitHub issue (`.temp/issues/specs/`)
+2. **@architect** - Creates IMPLEMENTATION-PLAN.md (`specs/architecture/{issue}/`)
+3. **@designer** - Creates COMPONENT-PLAN.md (`specs/{branch}/{component}/`) (if UI)
+4. **@coder** - Executes implementation via 8-phase TDD workflow
+5. **Create PR** - Use appropriate template
+6. **Review** - Checklist validates TDD/SOLID compliance
+7. **Merge** - Issue auto-closes, workflow complete
+
+#### CI Pipeline
+
+Template checklists mirror exact `ci:all` script from `package.json`:
+
+```json
+{
+  "ci:all": "npm-run-all ci:install ci:panda ci:lint ci:type-check ci:test:coverage ci:build ci:build-storybook"
+}
+```
+
+Each checkbox corresponds to one script, ensuring no checks are missed.
+
+#### Commit Message Integration
+
+Templates reference conventional commit format:
+
+```
+{type}({scope}): {description}
+
+{optional body}
+
+BREAKING CHANGE: {description} (if applicable)
+```
+
+Breaking change section in template maps directly to commit footer.
+
+### Template Selection Guide
+
+**Quick reference:**
+
+| PR Type               | Template         | Typical Estimate | Key Validation                          |
+| --------------------- | ---------------- | ---------------- | --------------------------------------- |
+| New component/feature | `feature.md`     | 5-13 points      | All variants, Storybook, TDD            |
+| Bug fix               | `bugfix.md`      | 1-5 points       | Regression test, root cause             |
+| Documentation         | `docs.md`        | 1-2 points       | Links valid, examples work              |
+| Code improvement      | `refactor.md`    | 2-8 points       | No behavior change, coverage maintained |
+| Performance           | `performance.md` | 3-8 points       | Metrics improved, benchmarks added      |
+| Dependencies/config   | `chore.md`       | 1-2 points       | No side effects                         |
+
+**When in doubt:** Use the default template (covers all bases).
+
+### Tips for Reviewers
+
+When reviewing PRs, verify:
+
+1. **Template used correctly** - Type matches content
+2. **All checklists complete** - No skipped sections
+3. **CI passes** - All 6 checks green
+4. **Specs linked** - Architecture/component plans referenced
+5. **Labels applied** - Align with `.github/labels.yml`
+6. **Issue will close** - `Closes #123` syntax present
+7. **Breaking changes documented** - Migration guide provided (if applicable)
+8. **Coverage acceptable** - Metrics visible even if thresholds disabled
+9. **TDD followed** - Tests exist for new code (feature/bugfix)
+10. **SOLID compliant** - Code follows best practices (feature/refactor)
+
+### Tips for Contributors
+
+**Before creating PR:**
+
+1. Run `bun run ci:all` locally - catch issues early
+2. Link issue in branch name - enables auto-close (`feature/123-add-button`)
+3. Use `/prepare-commit` - generates AI commit message
+4. Review architecture docs - ensure alignment with plan
+
+**Choosing the right template:**
+
+- If adding functionality → `feature.md`
+- If fixing broken behavior → `bugfix.md`
+- If changing structure/quality → `refactor.md`
+- If improving speed/size → `performance.md`
+- If updating docs → `docs.md`
+- If updating tooling → `chore.md`
+
+**Filling out the template:**
+
+- ✅ Complete ALL sections (no skipping)
+- ✅ Check ALL checkboxes (or mark N/A)
+- ✅ Provide metrics (coverage, performance, bundle size)
+- ✅ Link specs (IMPLEMENTATION-PLAN.md, COMPONENT-PLAN.md)
+- ✅ Add screenshots (for UI changes)
+- ✅ Suggest labels (helps maintainers)
+
+**Common mistakes:**
+
+- ❌ Using default template for specialized PR (use specific template)
+- ❌ Skipping CI validation checklist (must verify all checks)
+- ❌ No issue link (prevents auto-close)
+- ❌ Breaking changes without migration guide
+- ❌ No tests for new code (TDD required)
+- ❌ Missing Storybook stories (required for UI components)
+
+### Example Workflows
+
+#### Creating a Feature PR
+
+```bash
+# 1. Create feature branch
+git checkout -b feature/130-dark-mode-toggle
+
+# 2. Implement feature (following IMPLEMENTATION-PLAN.md)
+# ... (via @coder agent or manually)
+
+# 3. Run CI locally
+bun run ci:all
+
+# 4. Commit changes
+/prepare-commit  # Or: git add . && git commit -m "feat(toggle): ..."
+
+# 5. Push branch
+git push -u origin feature/130-dark-mode-toggle
+
+# 6. Create PR with feature template
+gh pr create --template .github/PULL_REQUEST_TEMPLATE/feature.md
+
+# 7. Fill out template, submit for review
+```
+
+#### Creating a Bug Fix PR
+
+```bash
+# 1. Create fix branch
+git checkout -b fix/125-button-hover-bug
+
+# 2. Add regression test (RED)
+# ... write failing test
+
+# 3. Fix bug (GREEN)
+# ... implement fix
+
+# 4. Run CI locally
+bun run ci:all
+
+# 5. Commit changes
+/prepare-commit
+
+# 6. Push and create PR
+git push -u origin fix/125-button-hover-bug
+gh pr create --template .github/PULL_REQUEST_TEMPLATE/bugfix.md
+```
+
+### Maintenance
+
+**Adding new templates:**
+
+1. Create `.github/PULL_REQUEST_TEMPLATE/{name}.md`
+2. Follow existing structure (11 sections)
+3. Include CI validation checklist
+4. Link to agent workflow specs
+5. Suggest appropriate labels
+6. Update this AGENTS.md section
+
+**Updating existing templates:**
+
+1. Edit `.github/PULL_REQUEST_TEMPLATE/{name}.md`
+2. Ensure CI checklist matches `package.json` scripts
+3. Verify label suggestions align with `.github/labels.yml`
+4. Test template by creating sample PR
+5. Update documentation if structure changed
+
+**Template best practices:**
+
+- Keep sections consistent across templates
+- Use checkboxes for actionable items
+- Provide examples in comments
+- Link to relevant documentation
+- Keep concise (max 250 lines per template)
+
 ## Designer-to-Coder Workflow
 
 FulgensUI uses a two-agent workflow for implementing components from Penpot designs:
