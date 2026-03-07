@@ -1,0 +1,76 @@
+# Technical Feasibility Validation Rules
+# Loaded: Phase 1 (Issue Ingestion)
+# Unloaded: After validation complete
+
+version: 1.0
+
+technical_feasibility:
+  checks:
+    file_existence:
+      enabled: true
+      description: "Check referenced files exist in codebase"
+      commands:
+        - "ls <file-path>"
+        - "test -f <file-path>"
+
+    import_validation:
+      enabled: true
+      description: "Verify import paths are valid"
+      patterns:
+        - "Check for circular dependencies"
+        - "Verify exported types/functions exist"
+
+    type_safety:
+      enabled: true
+      description: "Verify type definitions available"
+      commands:
+        - "bun run type-check"
+
+    test_coverage:
+      enabled: true
+      thresholds:
+        green: 90 # ≥90% = GREEN
+        yellow: 70 # 70-89% = YELLOW
+        red: 0 # <70% = RED (but only warning)
+      commands:
+        - "bun run ci:test:coverage"
+
+    breaking_changes:
+      enabled: true
+      description: "Scan for public API changes"
+      patterns:
+        - "Removed exports"
+        - "Changed function signatures"
+        - "Renamed components"
+      commands:
+        - "git diff main...HEAD --name-only"
+        - "git diff main...HEAD -- '*.ts' '*.tsx'"
+
+  status_levels:
+    green:
+      label: "✅ GREEN"
+      description: "All checks passed, ready to implement"
+
+    yellow:
+      label: "⚠️ YELLOW"
+      description: "Warnings present, proceed with caution"
+      examples:
+        - "Test coverage 70-89%"
+        - "Missing tests for new code"
+        - "Minor breaking changes with migration path"
+
+    red:
+      label: "❌ RED"
+      description: "Blockers found, cannot proceed without resolution"
+      examples:
+        - "Missing required files"
+        - "Circular dependencies detected"
+        - "Breaking changes without migration plan"
+        - "Conflicting dependencies"
+
+  red_blockers:
+    - "Referenced file does not exist"
+    - "Circular dependency detected"
+    - "Breaking change without migration plan"
+    - "Type definitions missing"
+    - "Conflicting package versions"

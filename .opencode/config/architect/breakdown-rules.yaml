@@ -1,0 +1,73 @@
+# Atomicity Enforcement Rules
+# Loaded: Phase 3 (Atomicity Check)
+# Unloaded: After check complete or plan generation begins
+
+version: 1.0
+
+atomicity:
+  max_implementation_steps: 8
+  max_story_points: 13
+  max_packages_affected: 2
+  max_components_affected: 3
+
+  detection_threshold: 2 # 2+ signals = recommend breakdown
+
+  complexity_signals:
+    cross_cutting:
+      - "all components"
+      - "entire app"
+      - "entire system"
+      - "multiple packages"
+      - "across the codebase"
+
+    scope_indicators:
+      - "and also"
+      - "in addition to"
+      - "while we're at it"
+      - "as well as"
+      - "along with"
+
+    integration_complexity:
+      - "frontend and backend"
+      - "API integration"
+      - "database migration"
+      - "breaking change"
+      - "external service"
+
+    volume_indicators:
+      - ">5 components"
+      - ">3 pages"
+      - ">8 subtasks"
+      - ">10 files"
+
+  breakdown_strategies:
+    - name: "Convert to Epic"
+      trigger: "affects >5 components"
+      action: "Create Epic + separate Items per component"
+      example: "Epic: Redesign form system → Items: Input, Select, Textarea, Checkbox, Radio"
+
+    - name: "Narrow Scope"
+      trigger: "multiple unrelated features"
+      action: "Focus on primary feature, defer others to separate issues"
+      example: "Story: Add dark mode → Focus on just toggle, defer persistence"
+
+    - name: "Sequential Subtasks"
+      trigger: "dependent tasks detected"
+      action: "Create parent Issue + child Items with clear dependencies"
+      example: "Parent: Theme system → Child 1: Provider, Child 2: Hook, Child 3: Persistence"
+
+  recommendation_template: |
+    ⚠️ Atomicity Warning
+
+    This issue appears non-atomic.
+
+    **Complexity detected:**
+    {detected_signals}
+
+    **Recommendation:**
+    {breakdown_strategy}
+
+    What would you like to do?
+    1. Ask @manager to break down issue (recommended)
+    2. Proceed with planning as single issue (not recommended)
+    3. Cancel and refine manually

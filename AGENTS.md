@@ -1270,6 +1270,321 @@ See `.opencode/examples/manager/` for:
 
 - `.opencode/templates/manager/spec-{type}.md`
 
+## Architect Agent (@architect)
+
+The @architect agent is a development planning specialist that creates comprehensive implementation plans for GitHub issues. It analyzes technical feasibility, validates atomicity, delegates to specialized agents when needed, and generates step-by-step plans that coder agents can execute.
+
+### When to Use @architect
+
+Use @architect when you need to:
+
+- Plan implementation for a GitHub issue (bug, story, task, item)
+- Analyze technical feasibility before starting work
+- Break down complex issues into subtasks with dependencies
+- Get a structured implementation checklist
+- Validate that an issue is atomic and implementable
+- Coordinate between designer and coder agents
+
+### Quick Start
+
+**Plan a bug fix:**
+
+```
+@architect 125
+```
+
+**Plan a story implementation:**
+
+```
+@architect #130
+```
+
+**Plan with explicit mention:**
+
+```
+@architect Can you create an implementation plan for issue #125?
+```
+
+### How @architect Works
+
+The architect agent follows a 7-step workflow:
+
+1. **Issue Ingestion**: Fetches GitHub issue with labels, body, acceptance criteria, subtasks
+2. **Validation**: Checks technical feasibility (files exist, no breaking changes, test coverage)
+3. **Atomicity Check**: Detects if issue is too large (>8 steps, >13 points, cross-cutting concerns)
+4. **Codebase Analysis**: Explores affected files, imports, integration points
+5. **Delegation**: Asks user before delegating UI components to @designer
+6. **Plan Creation**: Generates IMPLEMENTATION-PLAN.md with 11 comprehensive sections
+7. **Subtask Plans**: Creates separate plans for each subtask with dependencies
+
+### Invocation Patterns
+
+**Natural language with issue number:**
+
+```
+@architect 125
+@architect #130
+@architect issue 125
+@architect Can you plan issue #130?
+```
+
+**Direct mention (required):**
+
+- Issue number detection is automatic (searches for `#123`, `issue 123`, `#123`)
+- But `@architect` mention is REQUIRED - no auto-triggering
+- Use explicit `@architect` in your message
+
+### Validation Status Levels
+
+**GREEN (✅)**: All checks passed, ready to implement
+
+- Files exist
+- No breaking changes detected
+- Test coverage adequate
+- TypeScript types compatible
+
+**YELLOW (⚠️)**: Warnings present, review before proceeding
+
+- Missing test coverage
+- Minor breaking changes
+- Type compatibility issues
+- Integration complexity
+
+**RED (🚫)**: Blockers detected, cannot proceed
+
+- Critical files missing
+- Major breaking changes
+- Type safety violations
+- Dependency conflicts
+
+**On RED status:** Architect asks user how to proceed (doesn't auto-block)
+
+### Atomicity Enforcement
+
+The architect agent automatically detects non-atomic issues using these signals:
+
+**Thresholds:**
+
+- Steps: >8 implementation steps
+- Story points: >13 points
+- Packages: Affects 2+ packages
+- Components: Affects 3+ components
+
+**Complexity Signals:**
+
+- Cross-cutting keywords: "all components", "entire app", "system-wide"
+- Scope indicators: "multiple", "various", "across"
+- Integration patterns: "integrate X with Y", "connect A to B"
+- Volume indicators: "comprehensive", "complete", "full"
+
+**When 2+ signals detected:** Offers three options:
+
+1. **Convert to Epic**: Break into multiple items
+2. **Narrow Scope**: Reduce to single component/feature
+3. **Continue Anyway**: Proceed with complex implementation (user decides)
+
+### Delegation Protocol
+
+**Designer delegation:**
+
+- Triggered when: New UI component, visual design, layout changes
+- Always asks user first: "Should I delegate UI planning to @designer?"
+- User must approve before delegating
+- References COMPONENT-PLAN.md in implementation plan
+
+**Explorer auto-delegation:**
+
+- Triggered when: Large codebase analysis needed, many files to search
+- NO approval needed (automatic delegation)
+- Returns analysis results to continue planning
+
+### Output Structure
+
+**Main plan:** `specs/architecture/{issue-number}/IMPLEMENTATION-PLAN.md`
+
+Contains 11 sections:
+
+1. **Overview** - Issue summary, acceptance criteria, scope
+2. **Scope** - In-scope/out-of-scope boundaries
+3. **Codebase Analysis** - Files affected, imports, integration points
+4. **Feasibility** - Validation status (GREEN/YELLOW/RED), risk assessment
+5. **Delegation** - Designer/explorer delegation status and references
+6. **Implementation Checklist** - 5-phase step-by-step guide (Setup → Implementation → Testing → Documentation → Validation)
+7. **Subtasks** - Links to subtask plans with estimates
+8. **Risk Assessment** - Technical risks and mitigation strategies
+9. **Testing Strategy** - Unit/integration/e2e test requirements
+10. **Assets** - Screenshots, diagrams, references
+11. **Notes** - Implementation guidance and decisions
+
+**Subtask plans:** `specs/architecture/{issue-number}/subtask-{number}.md`
+
+Contains 9 sections:
+
+1. **Goal** - What this subtask accomplishes
+2. **Acceptance Criteria** - Done when these are met
+3. **Dependencies** - What must complete first
+4. **Files Affected** - Exact file paths
+5. **Implementation Steps** - Detailed step-by-step instructions
+6. **Test Requirements** - Test cases to write
+7. **Definition of Done** - Completion checklist
+8. **Notes** - Important context and guidance
+9. **Progress** - Tracks completion status
+
+**Dependencies:** `specs/architecture/{issue-number}/DEPENDENCIES.md`
+
+Contains:
+
+- Per-subtask dependency analysis
+- Execution order (phases)
+- Critical path identification
+- Recommended workflow (sequential vs parallel)
+
+### Context Budget Management
+
+The architect agent uses phase-based context loading to stay under 300 lines:
+
+**Phase 1 (Ingestion):** architect.md (150) + validation-rules.yaml (60) = 210 lines  
+**Phase 2 (Validation):** architect.md (150) + codebase-analysis.md (90) = 240 lines  
+**Phase 3 (Atomicity):** architect.md (150) + breakdown-rules.yaml (70) = 220 lines  
+**Phase 4 (Delegation):** architect.md (150) + delegation-patterns.yaml (50) = 200 lines  
+**Phase 5 (Planning):** architect.md (150) + planning-workflow.md (120) = 270 lines  
+**Phase 6 (Subtasks):** architect.md (150) + dependency-analysis.md (80) = 230 lines
+
+### Integration with Other Agents
+
+**With @manager:**
+
+```
+1. @manager Create a story for dark mode support
+2. /create-issue <spec>
+3. @architect <issue-number>
+4. [Architect creates implementation plan]
+5. @general Implement from specs/architecture/<issue>/IMPLEMENTATION-PLAN.md
+```
+
+**With @designer:**
+
+```
+1. @architect <issue>
+2. [Architect detects UI component]
+3. Architect: "Should I delegate Button component planning to @designer?"
+4. User: "yes"
+5. @designer [creates COMPONENT-PLAN.md]
+6. Architect: [references COMPONENT-PLAN.md in implementation plan]
+```
+
+**With @general (coder):**
+
+```
+1. @architect <issue>
+2. [Architect creates plan]
+3. @general Implement from specs/architecture/<issue>/IMPLEMENTATION-PLAN.md
+4. [Coder follows checklist step-by-step]
+```
+
+### Examples
+
+See `specs/examples/architecture/` for comprehensive examples:
+
+**Simple bug fix (no subtasks):**
+
+- `125-button-bug/IMPLEMENTATION-PLAN.md` - GREEN validation, single file change
+
+**Story with subtasks:**
+
+- `130-dark-mode-story/IMPLEMENTATION-PLAN.md` - 3 subtasks, designer delegation
+- `130-dark-mode-story/subtask-131.md` - Toggle component implementation
+- `130-dark-mode-story/DEPENDENCIES.md` - Dependency analysis
+
+**Non-atomic issue:**
+
+- `200-non-atomic-epic/IMPLEMENTATION-PLAN.md` - Atomicity check FAIL, breakdown recommended
+
+### Workflow Integration
+
+**Recommended workflow:**
+
+```
+1. Create GitHub issue with @manager
+2. @architect <issue-number> to plan implementation
+3. Review IMPLEMENTATION-PLAN.md
+4. If subtasks exist, review dependency order
+5. @general Implement from plan (follow checklist)
+6. Run bun run ci:all to validate
+7. Commit with conventional commit message
+8. Reference issue in commit: "feat(theme): implement toggle (#131)"
+```
+
+**With feature branches:**
+
+```
+feature/<issue-number>-<short-description>
+```
+
+Example: `feature/130-dark-mode`
+
+### Tips
+
+**For best results:**
+
+- Ensure GitHub issue has clear acceptance criteria
+- Add technical context in issue description
+- Label issues correctly (issue:bug, issue:story, etc.)
+- Include story point estimates
+- Reference related issues for context
+
+**Common patterns:**
+
+- Use architect for ANY non-trivial issue (not just complex ones)
+- Review validation status before implementing
+- Break down YELLOW/RED issues before implementing
+- Follow subtask dependency order strictly
+- Check off implementation checklist items as you work
+
+### Agent Boundaries
+
+**The architect agent ONLY creates plans. It does NOT:**
+
+❌ Write code (TypeScript, React, CSS)  
+❌ Run builds, tests, or git operations  
+❌ Modify files in packages/  
+❌ Install dependencies  
+❌ Commit files  
+❌ Create GitHub issues
+
+**The architect agent DOES:**
+
+✅ Read GitHub issues  
+✅ Analyze codebase structure  
+✅ Validate technical feasibility  
+✅ Generate implementation plans  
+✅ Create subtask plans  
+✅ Analyze dependencies  
+✅ Delegate to designer/explorer  
+✅ Calculate story point complexity  
+✅ Recommend breakdown when needed
+
+### Configuration
+
+**Core files:**
+
+- `.opencode/agents/architect.md` - Agent definition
+- `.opencode/config/architect/validation-rules.yaml` - Feasibility checks
+- `.opencode/config/architect/breakdown-rules.yaml` - Atomicity thresholds
+- `.opencode/config/architect/delegation-patterns.yaml` - Delegation triggers
+
+**Workflow prompts:**
+
+- `.opencode/prompts/architect/planning-workflow.md` - 7-step process
+- `.opencode/prompts/architect/codebase-analysis.md` - Analysis strategy
+- `.opencode/prompts/architect/dependency-analysis.md` - Dependency detection
+
+**Templates:**
+
+- `.opencode/templates/architect/IMPLEMENTATION-PLAN.md` - Main plan template
+- `.opencode/templates/architect/subtask-plan.md` - Subtask template
+- `.opencode/templates/architect/DEPENDENCIES.md` - Dependency analysis template
+
 ## Additional Notes
 
 - Uses Bun as package manager (>= 1.3.0)

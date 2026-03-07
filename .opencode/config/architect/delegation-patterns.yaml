@@ -1,0 +1,54 @@
+# Delegation Patterns for Specialized Agents
+# Loaded: Phase 4 (Delegation Decision)
+# Unloaded: After user approval/denial
+
+version: 1.0
+
+designer_delegation:
+  approval_required: true
+
+  triggers:
+    keywords:
+      - "component"
+      - "UI"
+      - "UX"
+      - "design"
+      - "Penpot"
+      - "visual"
+      - "interaction"
+      - "layout"
+
+    issue_types:
+      - "story"
+      - "item"
+
+    scope_labels:
+      - "scope:core"
+
+    acceptance_criteria_patterns:
+      - "looks like"
+      - "visual design"
+      - "styled according to"
+      - "matches Penpot"
+
+  prompt_template: |
+    I see this issue involves {component_type}.
+    Do you have a Penpot design for this component?
+
+    Options:
+    1. Yes, delegate to @designer first
+    2. No design yet, plan without design spec
+    3. Design already documented, skip @designer
+
+  task_invocation: "Create component plan for {component_name} from Penpot"
+
+explorer_delegation:
+  approval_required: false # Auto-delegate for exploration
+
+  triggers:
+    - "large codebase analysis needed (>10 files)"
+    - "multiple file searches required (>3 patterns)"
+    - "dependency graph exploration"
+    - "architecture pattern discovery"
+
+  task_invocation: "Analyze {scope} in codebase, return {output_format}"
