@@ -16,8 +16,12 @@ describe("Button", () => {
     expect(button).toHaveClass("fui-button");
   });
 
-  it("renders with secondary variant", () => {
-    render(<Button variant="secondary">Secondary</Button>);
+  it("renders with secondary intent variant", () => {
+    render(
+      <Button visual="solid" intent="secondary">
+        Secondary
+      </Button>,
+    );
     const button = screen.getByRole("button");
     expect(button).toBeInTheDocument();
   });
