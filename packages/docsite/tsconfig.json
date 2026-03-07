@@ -18,6 +18,12 @@
 
     "types": ["@docusaurus/module-type-aliases", "@docusaurus/types"]
   },
-  "include": ["src", "docusaurus.config.ts", "sidebars.ts", ".docusaurus"],
+  "include": [
+    "src",
+    "docusaurus.config.ts",
+    "sidebars.ts",
+    "eslint.config.ts",
+    ".docusaurus"
+  ],
   "exclude": ["node_modules"]
 }
