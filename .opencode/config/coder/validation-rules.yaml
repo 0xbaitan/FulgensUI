@@ -1,0 +1,192 @@
+# CI Validation & Auto-Fix Rules
+# Loaded: Phase 6 (Validation)
+# Defines validation checks and auto-fix strategies
+
+version: 1.0
+
+ci_validation:
+  required_checks:
+    - name: "panda"
+      description: "Generate PandaCSS styled-system"
+      command: "bun run ci:panda"
+      order: 1
+      auto_fix: false
+      retry_on_fix: false
+      critical: true
+
+    - name: "lint"
+      description: "ESLint validation with auto-fix"
+      command: "bun run ci:lint"
+      order: 2
+      auto_fix: true
+      auto_fix_command: "bun run lint --fix"
+      retry_on_fix: true
+      critical: true
+
+    - name: "type-check"
+      description: "TypeScript type validation"
+      command: "bun run ci:type-check"
+      order: 3
+      auto_fix: false
+      retry_on_fix: false
+      critical: true
+
+    - name: "test"
+      description: "Run tests with coverage"
+      command: "bun run ci:test:coverage"
+      order: 4
+      auto_fix: false
+      retry_on_fix: false
+      critical: true
+
+    - name: "build"
+      description: "Production build"
+      command: "bun run ci:build"
+      order: 5
+      auto_fix: false
+      retry_on_fix: false
+      critical: true
+
+  optional_checks:
+    - name: "storybook"
+      description: "Build Storybook"
+      command: "bun run ci:build-storybook"
+      auto_fix: false
+      critical: false
+
+auto_fix_strategy:
+  lint:
+    enabled: true
+    command: "bun run lint --fix"
+    retry_count: 1
+    description: "Auto-fix ESLint errors (formatting, unused imports, etc.)"
+
+  format:
+    enabled: true
+    command: "bunx prettier --write ."
+    retry_count: 1
+    description: "Format all files with Prettier"
+
+  type_errors:
+    enabled: false
+    reason: "Type errors require manual inspection and fixing"
+    action: "Report to user with file paths and line numbers"
+
+  test_failures:
+    enabled: false
+    reason: "Test failures indicate logic errors requiring manual fix"
+    action: "Report failing tests with error messages"
+
+retry_strategy:
+  max_attempts: 3
+  backoff: "immediate" # No delay between retries
+
+  retry_on:
+    - "Lint errors fixed"
+    - "Format applied"
+    - "Panda regenerated"
+
+  no_retry_on:
+    - "Type errors"
+    - "Test failures"
+    - "Build errors"
+
+coverage_thresholds:
+  global:
+    enabled: false # Disabled globally per project config
+    branch: 90
+    line: 90
+    function: 90
+    statement: 90
+
+  enforcement:
+    mode: "warn" # Warn but don't block
+    report: true
+    suggest_untested_lines: true
+
+validation_workflow:
+  phase_6_process:
+    - step: "Run bun run ci:panda"
+      on_failure: "Report error, suggest manual regeneration"
+
+    - step: "Run bun run ci:lint"
+      on_failure:
+        - "Run bun run lint --fix"
+        - "Retry bun run ci:lint"
+        - "If still fails, report unfixable errors"
+
+    - step: "Run bun run ci:type-check"
+      on_failure:
+        - "Parse errors for file paths and line numbers"
+        - "Report to user with context"
+        - "Ask user how to proceed (fix manually or skip)"
+
+    - step: "Run bun run ci:test:coverage"
+      on_failure:
+        - "Report failing tests with error messages"
+        - "Show coverage report if some tests pass"
+        - "Ask user how to proceed"
+
+    - step: "Run bun run ci:build"
+      on_failure:
+        - "Report build errors"
+        - "Check if type errors related"
+        - "Ask user how to proceed"
+
+error_reporting:
+  format:
+    lint_errors: |
+      ❌ Lint validation failed:
+
+      File: {file_path}:{line}:{column}
+      Error: {error_message}
+      Rule: {rule_name}
+
+      Auto-fix attempted: {yes/no}
+      Fix successful: {yes/no}
+
+    type_errors: |
+      ❌ Type check failed:
+
+      {tsc_output}
+
+      Summary:
+      - {count} error(s) found
+      - Affected files: {file_list}
+
+      Action required: Manual fix needed
+
+    test_failures: |
+      ❌ Tests failed:
+
+      Failed tests: {count}
+      {test_list}
+
+      Coverage: {coverage_summary}
+
+      Action required: Fix failing tests or adjust expectations
+
+    build_errors: |
+      ❌ Build failed:
+
+      {build_output}
+
+      Possible causes:
+      - Type errors
+      - Missing imports
+      - Configuration issues
+
+      Action required: Review error output above
+
+success_reporting:
+  format: |
+    ✅ All CI validations passed!
+
+    - PandaCSS: Generated
+    - Lint: Passed (auto-fixed: {count} issues)
+    - Type Check: Passed
+    - Tests: Passed ({pass}/{total})
+    - Coverage: {branch}% branch, {line}% line
+    - Build: Success
+
+    Ready for commit: ci: validate {feature} implementation

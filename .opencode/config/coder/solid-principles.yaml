@@ -1,0 +1,155 @@
+# SOLID Principles & Minimal Changes Rules
+# Loaded: Phase 0 (Plan Ingestion), Phase 3 (Implementation)
+# Ensures strict adherence to SOLID and minimal change philosophy
+
+version: 1.0
+
+principles:
+  single_responsibility:
+    description: "One component, one purpose"
+    rule: "Each module/component should have only one reason to change"
+    violations:
+      - "Component handles both UI rendering and business logic"
+      - "Single file exports multiple unrelated utilities"
+      - "Hook manages unrelated state concerns"
+
+    checks:
+      - "Does component have more than one responsibility?"
+      - "Can component be split into smaller units?"
+      - "Are side effects properly extracted to hooks?"
+
+    patterns:
+      good:
+        - "Button component only renders button UI"
+        - "useTheme hook only manages theme state"
+        - "storage.ts only handles localStorage operations"
+      bad:
+        - "Button component fetches data and renders UI"
+        - "useTheme also handles localStorage and API calls"
+
+  open_closed:
+    description: "Open for extension, closed for modification"
+    rule: "Extend behavior via composition, not modification"
+
+    patterns:
+      good:
+        - "Accept children prop for extensibility"
+        - "Use variant props for different styles"
+        - "Compose components instead of modifying source"
+      bad:
+        - "Modify existing component to add new behavior"
+        - "Add conditional logic for special cases"
+
+    checks:
+      - "Are you modifying existing component logic?"
+      - "Could this be achieved via props/composition?"
+
+  liskov_substitution:
+    description: "Subtypes must be substitutable for base types"
+    rule: "Component variants should maintain prop interface contract"
+
+    checks:
+      - "Do all variants accept the same base props?"
+      - "Are variant-specific props clearly marked optional?"
+      - "Does changing variant break existing usage?"
+
+    patterns:
+      good:
+        - "All Button variants accept onClick, disabled, children"
+        - "Variant props are additive (size, color, etc.)"
+      bad:
+        - "Primary button requires onClick, Secondary doesn't"
+        - "Changing variant requires different props structure"
+
+  interface_segregation:
+    description: "No component depends on unused props"
+    rule: "Required props must be used, optional props are truly optional"
+
+    violations:
+      - "Component requires prop but never uses it internally"
+      - "Hook requires parameter but ignores it"
+
+    checks:
+      - "Are all required props actually used?"
+      - "Could required props be made optional?"
+
+    patterns:
+      good:
+        - "Button uses all required props (children)"
+        - "Optional props (icon, loading) used conditionally"
+      bad:
+        - "Button requires 'id' but never applies it"
+
+  dependency_inversion:
+    description: "Depend on abstractions, not concrete implementations"
+    rule: "Use hooks/context for dependencies, not direct imports"
+
+    patterns:
+      good:
+        - "Component uses useTheme() hook, not direct theme import"
+        - "Hook accepts callback prop, not specific function"
+        - "Props accept interface types, not concrete classes"
+      bad:
+        - "Component imports theme config directly"
+        - "Hook hardcodes specific localStorage implementation"
+
+    checks:
+      - "Are dependencies injected via props/hooks?"
+      - "Could this be abstracted behind an interface?"
+
+minimal_changes:
+  philosophy: "Change only what's necessary, nothing more"
+
+  rules:
+    strict:
+      - "Only modify files explicitly listed in IMPLEMENTATION-PLAN.md"
+      - "Don't refactor existing code unless plan requires it"
+      - "Use existing patterns, don't introduce new ones unnecessarily"
+      - "Question any change beyond the plan scope"
+      - "If existing component works, don't 'improve' it"
+
+    allowed_changes:
+      - "Create new files listed in plan"
+      - "Modify files listed in 'Files to Modify' section"
+      - "Add exports to index files for new components"
+      - "Update configs to include new recipes/tokens"
+
+    prohibited_changes:
+      - "Refactoring existing components 'while you're at it'"
+      - "Renaming variables for consistency"
+      - "Reformatting code that works"
+      - "Adding features not in acceptance criteria"
+      - "Optimizing code that isn't a bottleneck"
+
+  validation:
+    before_change:
+      - "Is this file listed in the implementation plan?"
+      - "Does acceptance criteria require this change?"
+      - "Am I introducing a new pattern unnecessarily?"
+
+    after_change:
+      - "Did I change only what was required?"
+      - "Are there any 'bonus' changes I should remove?"
+      - "Does this follow existing code patterns?"
+
+  exceptions:
+    allowed_without_plan:
+      - "Fixing import paths for new files"
+      - "Adding TypeScript types to satisfy compiler"
+      - "Updating exports in index.ts for new components"
+      - "Fixing lint errors in new code only"
+
+code_review_checklist:
+  solid_compliance:
+    - "[ ] Each component has single responsibility"
+    - "[ ] Extended via composition, not modification"
+    - "[ ] Variants maintain interface contract"
+    - "[ ] No unused required props"
+    - "[ ] Dependencies injected, not hardcoded"
+
+  minimal_changes:
+    - "[ ] Only files from plan modified"
+    - "[ ] No refactoring of existing code"
+    - "[ ] Existing patterns followed"
+    - "[ ] No 'bonus' features added"
+    - "[ ] Changes justify themselves via acceptance criteria"

@@ -1,0 +1,237 @@
+# Phase-Based Commit Strategy
+# Loaded: Phase 1, 3, 5, 6 (when commits are made)
+# Defines when and how to commit during implementation
+
+version: 1.0
+
+philosophy: "One commit per phase - clean, semantic history"
+
+commit_phases:
+  setup:
+    phase: 1
+    trigger: "After branch created and directory structure established"
+
+    commit_message:
+      type: "chore"
+      scope: "setup"
+      format: "chore(setup): initialize {feature-name} implementation"
+      examples:
+        - "chore(setup): initialize toggle component implementation"
+        - "chore(setup): initialize dark mode theme provider"
+
+    include:
+      - "Branch creation (via git agent)"
+      - "Directory structure (mkdir commands)"
+      - "Empty boilerplate files (if any)"
+      - "Initial configuration files"
+
+    exclude:
+      - "Implementation code"
+      - "Tests"
+      - "Documentation"
+
+    optional: true # Only if setup work is substantial
+
+  implementation:
+    phase: 3
+    trigger: "After TDD green phase - all tests pass, feature complete"
+
+    commit_message:
+      type: "feat"
+      scope: "{component-name or package}"
+      format: "feat({scope}): {feature-description}"
+      examples:
+        - "feat(toggle): implement toggle component with variants"
+        - "feat(theme): add dark mode provider and persistence"
+        - "feat(storage): add localStorage utility with error handling"
+
+    include:
+      - "Source files (components, hooks, utilities)"
+      - "Test files (all tests passing)"
+      - "PandaCSS recipes"
+      - "TypeScript types"
+      - "Index exports"
+
+    exclude:
+      - "Documentation files"
+      - "Storybook stories"
+      - "CI validation fixes"
+
+    body_template: |
+      Implements {acceptance-criteria-summary}
+
+      Files added:
+      {new-files-list}
+
+      Files modified:
+      {modified-files-list}
+
+      Closes #{issue-number}
+
+    required: true
+
+  refactor:
+    phase: 4
+    trigger: "After refactor phase - if code improvements made"
+
+    commit_message:
+      type: "refactor"
+      scope: "{component-name}"
+      format: "refactor({scope}): {improvement-description}"
+      examples:
+        - "refactor(toggle): extract state logic to custom hook"
+        - "refactor(theme): simplify context provider logic"
+
+    include:
+      - "Refactored source files"
+      - "Updated tests (if test structure changed)"
+
+    exclude:
+      - "New features"
+      - "Bug fixes"
+
+    optional: true # Only if refactoring was done
+
+    conditions:
+      - "Tests still pass after refactor"
+      - "Test coverage maintained or improved"
+      - "No behavior changes"
+
+  documentation:
+    phase: 5
+    trigger: "After Storybook stories and documentation written"
+
+    commit_message:
+      type: "docs"
+      scope: "{component-name}"
+      format: "docs({scope}): add {component} documentation and stories"
+      examples:
+        - "docs(toggle): add storybook stories and usage examples"
+        - "docs(theme): add theme provider documentation"
+
+    include:
+      - "Storybook .stories.tsx files"
+      - "Storybook .mdx files"
+      - "README updates"
+      - "CHANGELOG.md updates"
+
+    exclude:
+      - "Implementation code"
+      - "Test code"
+
+    required: true
+
+  validation:
+    phase: 6
+    trigger: "After CI validation passes (or after fixing CI issues)"
+
+    commit_message:
+      type: "ci"
+      scope: optional
+      format: "ci: validate {feature-name} implementation"
+      examples:
+        - "ci: validate toggle component implementation"
+        - "ci: fix lint errors in theme provider"
+
+    include:
+      - "CI fix commits (lint fixes, format changes)"
+      - "Coverage improvements"
+      - "Type annotation fixes"
+
+    exclude:
+      - "Feature changes"
+      - "Refactoring"
+
+    optional: true # Only if CI fixes were needed
+
+    conditions:
+      - "All CI checks pass"
+      - "Coverage meets threshold (or warning acknowledged)"
+
+  delivery:
+    phase: 7
+    trigger: "NEVER - agent does not commit or create PR"
+
+    note: |
+      The coder agent stops before creating PR.
+      User handles final PR creation via:
+      - /prepare-commit (for commit message)
+      - /create-pr or gh pr create
+
+commit_guidelines:
+  conventional_commits:
+    format: "<type>(<scope>): <subject>"
+    types:
+      - feat # New feature
+      - fix # Bug fix
+      - docs # Documentation only
+      - style # Formatting (no code change)
+      - refactor # Code restructure (no behavior change)
+      - test # Adding or updating tests
+      - chore # Maintenance tasks
+      - ci # CI/CD changes
+
+    scope:
+      component: "Component name (toggle, button, etc.)"
+      package: "Package name (core, docsite, etc.)"
+      area: "Feature area (theme, storage, etc.)"
+
+    subject:
+      rules:
+        - "Use imperative mood (add, implement, fix)"
+        - "Lowercase first letter"
+        - "No period at end"
+        - "Max 72 characters"
+
+  body:
+    when_to_include:
+      - "Complex changes need explanation"
+      - "Breaking changes introduced"
+      - "Multiple files affected"
+      - "Issue reference needed"
+
+    format: |
+      Brief paragraph explaining the change
+
+      - Bullet point for specific detail
+      - Another detail
+
+      Closes #{issue-number}
+
+  footer:
+    breaking_changes:
+      format: |
+        BREAKING CHANGE: Description of breaking change
+
+        Migration guide:
+        - Step 1
+        - Step 2
+
+    issue_references:
+      format: "Closes #{number}, Refs #{number}"
+
+commit_execution:
+  method: "direct" # Execute git commands directly, not via @git agent
+
+  commands:
+    stage_all: "git add ."
+    stage_specific: "git add {file-path}"
+    commit: "git commit -m '{message}'"
+    commit_with_body: "git commit -m '{subject}' -m '{body}'"
+
+  validation_before_commit:
+    - "Check git status"
+    - "Verify staged files match phase expectations"
+    - "Confirm commit message follows conventional format"
+    - "Review diff to ensure no unexpected changes"
+
+phase_transition:
+  rules:
+    - "Complete phase fully before committing"
+    - "Don't commit partial work"
+    - "Ensure tests pass before implementation commit"
+    - "Run validation before validation commit"
+
+  exceptions:
+    - "Can skip optional phases (setup, refactor, validation)"
+    - "Can combine phases if work is minimal"

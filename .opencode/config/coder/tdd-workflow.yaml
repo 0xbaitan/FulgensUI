@@ -1,0 +1,173 @@
+# Test-Driven Development Workflow
+# Loaded: Phase 2-4 (TDD Red → Green → Refactor)
+# Enforces write-test-first methodology
+
+version: 1.0
+
+workflow:
+  red_phase:
+    name: "Write Failing Test"
+    description: "Write test that fails because feature doesn't exist yet"
+
+    steps:
+      - "Read acceptance criteria from IMPLEMENTATION-PLAN.md"
+      - "Identify specific behavior to test"
+      - "Write minimal test case that describes expected behavior"
+      - "Run test: bunx vitest run <test-file>"
+      - "Verify failure with clear error message"
+      - "Document what the failure tells us"
+
+    success_criteria:
+      - "Test fails for the right reason (feature not implemented)"
+      - "Error message clearly states what's missing"
+      - "Test is minimal (tests one thing)"
+
+    example:
+      description: "Testing Toggle component initial state"
+      test: |
+        it('renders with default checked state as false', () => {
+          render(<Toggle />);
+          const toggle = screen.getByRole('switch');
+          expect(toggle).toHaveAttribute('aria-checked', 'false');
+        });
+      expected_failure: "Unable to find role 'switch'"
+
+  green_phase:
+    name: "Make Test Pass"
+    description: "Write minimal code to make failing test pass"
+
+    steps:
+      - "Review failing test error message"
+      - "Implement ONLY what's needed to pass this test"
+      - "No premature optimization or extra features"
+      - "Run test: bunx vitest run <test-file>"
+      - "Verify test passes"
+      - "Run all tests to ensure no regressions"
+
+    success_criteria:
+      - "Failing test now passes"
+      - "All existing tests still pass"
+      - "No extra code added beyond test requirements"
+
+    rules:
+      - "Don't write more code than the test requires"
+      - "Don't add features not tested yet"
+      - "Keep it simple - refactor later"
+
+  refactor_phase:
+    name: "Improve Code Quality"
+    description: "Refactor code without changing behavior"
+
+    conditions:
+      - "Only run if test coverage ≥90%"
+      - "Only if code has obvious improvements"
+      - "Skip if tests are fragile"
+
+    steps:
+      - "Identify code smells (duplication, complexity)"
+      - "Apply SOLID principles"
+      - "Extract reusable logic"
+      - "Run tests after EACH change"
+      - "Stop immediately if tests fail"
+
+    rules:
+      - "Tests must pass after each refactor"
+      - "Don't change test expectations"
+      - "Don't add new functionality"
+      - "Don't optimize without profiling"
+
+    allowed_refactorings:
+      - "Extract repeated logic to helper functions"
+      - "Rename variables for clarity"
+      - "Simplify conditional logic"
+      - "Remove duplication"
+
+    prohibited_refactorings:
+      - "Changing component API"
+      - "Adding new features"
+      - "Performance optimization (unless bottleneck identified)"
+      - "Rewriting working code 'for style'"
+
+test_patterns:
+  component_tests:
+    order:
+      - "Render test (default state)"
+      - "Props validation (required/optional)"
+      - "User interactions (click, change, etc.)"
+      - "State changes (controlled/uncontrolled)"
+      - "Edge cases (null, undefined, empty)"
+      - "Accessibility (roles, aria attributes)"
+
+    example_structure: |
+      describe('Toggle', () => {
+        describe('Rendering', () => {
+          it('renders with default unchecked state', () => { ... });
+          it('renders with checked prop', () => { ... });
+        });
+        
+        describe('User Interaction', () => {
+          it('toggles state on click', () => { ... });
+          it('calls onChange handler', () => { ... });
+        });
+        
+        describe('Edge Cases', () => {
+          it('handles disabled state', () => { ... });
+          it('prevents interaction when disabled', () => { ... });
+        });
+      });
+
+  hook_tests:
+    order:
+      - "Initial state"
+      - "State updates"
+      - "Side effects"
+      - "Cleanup"
+      - "Error handling"
+
+    example_structure: |
+      describe('useTheme', () => {
+        it('returns light theme by default', () => { ... });
+        it('toggles theme on setTheme call', () => { ... });
+        it('persists theme to localStorage', () => { ... });
+        it('loads theme from localStorage on mount', () => { ... });
+      });
+
+  utility_tests:
+    order:
+      - "Happy path"
+      - "Edge cases"
+      - "Error handling"
+      - "Boundary conditions"
+
+    example_structure: |
+      describe('storage.get', () => {
+        it('retrieves value from localStorage', () => { ... });
+        it('returns default value if key missing', () => { ... });
+        it('handles JSON parse errors gracefully', () => { ... });
+        it('returns null if localStorage unavailable', () => { ... });
+      });
+
+coverage_requirements:
+  minimum:
+    branch: 90
+    line: 90
+    function: 90
+    statement: 90
+
+  enforcement:
+    block_commit: false # Warn but don't block (global setting)
+    report: true
+    suggest_missing: true
+
+test_execution:
+  commands:
+    single_file: "bunx vitest run <file-path>"
+    watch_mode: "bunx vitest <file-path>"
+    coverage: "bunx vitest run --coverage"
+    all_tests: "bun run ci:test"
+
+  failure_handling:
+    - "Read error message carefully"
+    - "Fix the test if expectations were wrong"
+    - "Fix the implementation if behavior is wrong"
+    - "Never skip or comment out failing tests"

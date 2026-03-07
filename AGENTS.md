@@ -1585,6 +1585,382 @@ Example: `feature/130-dark-mode`
 - `.opencode/templates/architect/subtask-plan.md` - Subtask template
 - `.opencode/templates/architect/DEPENDENCIES.md` - Dependency analysis template
 
+## Coder Agent (@coder)
+
+The @coder agent is a development execution specialist that implements architecture plans using strict Test-Driven Development (TDD) and SOLID principles. It transforms IMPLEMENTATION-PLAN.md files into working, tested, documented code through an 8-phase workflow.
+
+### When to Use @coder
+
+Use @coder when you need to:
+
+- Execute an implementation plan created by @architect
+- Follow strict TDD methodology (red → green → refactor)
+- Ensure SOLID principles are followed throughout implementation
+- Get phase-based commits (setup, implementation, docs, validation)
+- Auto-fix lint/format errors with validation retry
+- Implement with minimal changes (no scope creep or refactoring beyond plan)
+
+### Quick Start
+
+**Execute an implementation plan:**
+
+```
+@coder specs/architecture/130-dark-mode-story/IMPLEMENTATION-PLAN.md
+```
+
+**Execute a subtask plan:**
+
+```
+@coder specs/architecture/130-dark-mode-story/subtask-131.md
+```
+
+**Execute with explicit mention:**
+
+```
+@coder Can you implement the plan at specs/architecture/125-button-bug/IMPLEMENTATION-PLAN.md?
+```
+
+### How @coder Works
+
+The coder agent follows an 8-phase TDD workflow:
+
+1. **Phase 0: Plan Ingestion** - Read IMPLEMENTATION-PLAN.md, parse frontmatter, load SOLID principles and TDD rules
+2. **Phase 1: Branch Setup** - Ask user for branch name (suggest `feat/{issue}-{short-desc}`), create via @git agent, optional setup commit
+3. **Phase 2: TDD Red Phase** - Write failing tests for all components/utilities BEFORE implementation
+4. **Phase 3: TDD Green Phase** - Implement minimal code to pass tests, verify SOLID compliance, commit
+5. **Phase 4: TDD Refactor Phase** - Improve code quality if coverage ≥90%, optional commit
+6. **Phase 5: Documentation** - Write Storybook stories and MDX docs, commit
+7. **Phase 6: Validation** - Run `bun run ci:all`, auto-fix lint/format errors, retry up to 3 times, optional commit
+8. **Phase 7: Delivery** - Summarize work with metrics, suggest PR creation, DO NOT create PR (user controls)
+
+### Invocation Patterns
+
+**Natural language with file path:**
+
+```
+@coder specs/architecture/130/IMPLEMENTATION-PLAN.md
+@coder specs/architecture/130/subtask-131.md
+@coder Can you implement the plan in specs/architecture/125/?
+```
+
+**Direct mention (required):**
+
+- File path detection is automatic (searches for `.md` files in `specs/architecture/`)
+- But `@coder` mention is REQUIRED - no auto-triggering
+- Use explicit `@coder` in your message
+
+### TDD Methodology
+
+**Red Phase (Write Failing Tests):**
+
+- Write comprehensive test suites BEFORE any implementation
+- Cover: Rendering, variants, user interaction, disabled state, accessibility, edge cases
+- Use Vitest + React Testing Library + user-event
+- Run tests to verify they fail (RED)
+
+**Green Phase (Make Tests Pass):**
+
+- Implement minimal code to pass all tests
+- No extra features beyond acceptance criteria
+- Verify SOLID principles at this phase
+- Run tests to verify they pass (GREEN)
+- Commit implementation
+
+**Refactor Phase (Improve Code):**
+
+- Only run if coverage ≥90%
+- Improve code quality without changing behavior
+- Optional commit if changes made
+
+### SOLID Principles Enforcement
+
+The coder agent strictly enforces SOLID principles at Phase 3 (Green Phase):
+
+**Single Responsibility Principle (SRP):**
+
+- Each component does ONE thing
+- Example: Toggle only handles checked state and events (no theme logic)
+
+**Open/Closed Principle (OCP):**
+
+- Extended via props/composition, not modification
+- Example: Variants via PandaCSS recipe, not conditional logic
+
+**Liskov Substitution Principle (LSP):**
+
+- All variants maintain the interface contract
+- Example: `variant="primary"` and `variant="secondary"` both accept same props
+
+**Interface Segregation Principle (ISP):**
+
+- Only required props should be required
+- Example: `checked` and `onChange` required, `aria-label` optional
+
+**Dependency Inversion Principle (DIP):**
+
+- Depend on abstractions (hooks, recipes) not concrete implementations
+- Example: Use `toggle()` recipe, not inline styles
+
+**Minimal Changes Philosophy:**
+
+- Only modify files explicitly listed in IMPLEMENTATION-PLAN.md
+- No refactoring beyond plan scope
+- No adding features not in acceptance criteria
+- Question any changes beyond plan with user first
+
+### Commit Strategy
+
+The coder agent uses phase-based commits:
+
+**Setup Commit (optional):**
+
+- Type: `chore`
+- When: New dependencies installed or config changes
+- Example: `chore(deps): install @radix-ui/react-toggle`
+
+**Implementation Commit (required):**
+
+- Type: `feat` (new feature) or `fix` (bug fix)
+- When: After Phase 3 (Green Phase) completes
+- Example: `feat(toggle): implement Toggle component for dark mode`
+
+**Refactor Commit (optional):**
+
+- Type: `refactor`
+- When: Phase 4 makes improvements
+- Example: `refactor(toggle): extract event handler logic`
+
+**Documentation Commit (required):**
+
+- Type: `docs`
+- When: After Phase 5 (Storybook stories added)
+- Example: `docs(toggle): add Storybook stories for Toggle component`
+
+**Validation Commit (optional):**
+
+- Type: `ci`
+- When: Phase 6 makes code changes to fix validation
+- Example: `ci(toggle): fix lint errors`
+- Note: Auto-fixes (via `--fix` flag) don't need commits
+
+**Delivery Phase (never commits):**
+
+- User controls PR creation via `/prepare-commit` or manual workflow
+- Agent stops after summary
+
+### Validation Behavior
+
+**CI checks run in order:**
+
+1. PandaCSS generation (`bun run ci:panda`)
+2. ESLint (`bun run ci:lint`)
+3. TypeScript type check (`bun run ci:type-check`)
+4. Tests with coverage (`bun run ci:test:coverage`)
+5. Build (`bun run ci:build`)
+6. Storybook build (`bun run ci:build-storybook`)
+
+**Auto-fix strategy:**
+
+- **Lint errors:** Run `bun run ci:lint --fix` automatically, retry
+- **Format errors:** Run `bun run ci:lint --fix` automatically, retry
+- **Type errors:** Report to user, ask for guidance (no auto-fix)
+- **Test failures:** Report to user, ask for guidance (no auto-fix)
+- **Build errors:** Report to user, ask for guidance (no auto-fix)
+
+**Retry strategy:**
+
+- Max 3 attempts per check
+- Immediate retry after auto-fix
+- Report detailed errors on final failure
+
+**Coverage reporting:**
+
+- Coverage thresholds are DISABLED (allow incremental test development)
+- Coverage metrics always displayed (for awareness)
+- Tests pass regardless of coverage percentage
+
+### Branch Creation
+
+**User approval required:**
+
+- @coder always asks before creating branch
+- Suggests format: `feat/{issue-number}-{short-description}`
+- Example: `feat/130-dark-mode-toggle`
+
+**Delegation to @git:**
+
+- Branch creation delegated to @git agent (not created directly)
+- User can decline and create branch manually
+- Agent proceeds with existing branch if user declines
+
+### Context Budget Management
+
+The coder agent uses phase-based context loading to stay under 300 lines:
+
+**Phase 0 (Ingestion):** coder.md (150) + solid-principles.yaml (80) = 230 lines  
+**Phase 1 (Branch Setup):** coder.md (150) + commit-strategy.yaml (50) = 200 lines  
+**Phase 2-4 (TDD Phases):** coder.md (150) + tdd-workflow.yaml (70) = 220 lines  
+**Phase 5 (Documentation):** coder.md (150) = 150 lines  
+**Phase 6 (Validation):** coder.md (150) + validation-rules.yaml (60) = 210 lines  
+**Phase 7 (Delivery):** coder.md (150) = 150 lines
+
+### Integration with Other Agents
+
+**With @architect:**
+
+```
+1. @architect <issue-number>
+2. [Architect creates IMPLEMENTATION-PLAN.md]
+3. @coder specs/architecture/<issue>/IMPLEMENTATION-PLAN.md
+4. [Coder executes 8-phase workflow]
+5. [User creates PR via /prepare-commit]
+```
+
+**With @designer:**
+
+```
+1. @designer Read Penpot design for Toggle component
+2. [Designer creates COMPONENT-PLAN.md]
+3. @architect <issue-number>
+4. [Architect references COMPONENT-PLAN.md in implementation plan]
+5. @coder specs/architecture/<issue>/IMPLEMENTATION-PLAN.md
+6. [Coder reads both plans, implements component]
+```
+
+**With @git (branch creation):**
+
+```
+@coder: Should I create branch feat/130-dark-mode-toggle?
+User: yes
+@coder: Delegating to @git agent...
+@git: Created branch feat/130-dark-mode-toggle from main
+@coder: Proceeding with implementation...
+```
+
+### Subtask Handling
+
+**Sequential execution:**
+
+When IMPLEMENTATION-PLAN.md contains subtasks:
+
+1. Read DEPENDENCIES.md to determine execution order
+2. Execute subtasks in dependency order (not parallel)
+3. Check dependency completion before starting next subtask
+4. Commit after each subtask completes
+5. Report progress after each subtask
+
+**Dependency checking:**
+
+- Read `subtask-{number}.md` for `Dependencies` section
+- Verify required subtasks completed (check git log for commits)
+- Ask user if dependency not met
+
+### Examples
+
+See `specs/examples/coder/` for comprehensive examples:
+
+**Dark Mode Toggle Execution:**
+
+- `130-dark-mode-execution/README.md` - Complete execution walkthrough with metrics
+- `130-dark-mode-execution/execution-log.md` - Detailed phase-by-phase terminal output
+
+**Demonstrates:**
+
+- Full 8-phase TDD workflow (red → green → refactor)
+- Phase-based commits (implementation + documentation)
+- Auto-fix lint errors with retry
+- SOLID compliance checking at Green Phase
+- User-controlled branch creation
+- Coverage reporting without blocking
+
+**Key metrics:**
+
+- Total time: ~16 minutes
+- Commits: 2 (implementation, documentation)
+- Files created: 5 (component, test, story, recipe, index)
+- Test coverage: 92% (12/12 tests passing)
+- CI validation: ✅ All checks passed
+
+### Tips
+
+**For best results:**
+
+- Ensure IMPLEMENTATION-PLAN.md has clear acceptance criteria
+- Review plan before invoking @coder (catch issues early)
+- Approve branch creation with suggested name
+- Let auto-fix handle lint/format errors (don't intervene)
+- Review coverage metrics in Phase 6 (even though thresholds disabled)
+- Use `/prepare-commit` for AI-generated PR messages
+
+**Common patterns:**
+
+- Use @coder for ANY implementation plan (not just complex ones)
+- Let TDD catch edge cases early (keyboard handling, disabled states)
+- Trust SOLID checks to prevent over-engineering
+- Follow suggested commit messages (conventional commits format)
+- Review code after delivery, before creating PR
+
+**Avoid:**
+
+- Skipping TDD Red Phase (always write tests first)
+- Manually fixing lint errors (let auto-fix handle them)
+- Creating PR before reviewing code
+- Adding features beyond acceptance criteria
+- Refactoring code not listed in plan
+
+### Agent Boundaries
+
+**The coder agent ONLY executes implementation plans. It does NOT:**
+
+❌ Create architecture plans (use @architect)  
+❌ Create design specifications (use @designer)  
+❌ Create GitHub issues (use @manager)  
+❌ Create pull requests (user controls via /prepare-commit)  
+❌ Modify files not listed in plan  
+❌ Add features beyond acceptance criteria  
+❌ Refactor code beyond plan scope  
+❌ Make decisions about architecture or design
+
+**The coder agent DOES:**
+
+✅ Read IMPLEMENTATION-PLAN.md and subtask plans  
+✅ Write tests before implementation (TDD)  
+✅ Implement minimal code to pass tests  
+✅ Verify SOLID principles compliance  
+✅ Write Storybook stories and documentation  
+✅ Run CI validation and auto-fix errors  
+✅ Create phase-based commits  
+✅ Delegate branch creation to @git  
+✅ Report metrics and suggest next steps  
+✅ Stop before creating PR (user controls)
+
+### Configuration
+
+**Core files:**
+
+- `.opencode/agents/coder.md` - Agent definition (400 lines)
+- `.opencode/config/coder/solid-principles.yaml` - SOLID rules and checklist (160 lines)
+- `.opencode/config/coder/tdd-workflow.yaml` - Red/Green/Refactor workflow (150 lines)
+- `.opencode/config/coder/validation-rules.yaml` - CI checks and auto-fix strategy (140 lines)
+- `.opencode/config/coder/commit-strategy.yaml` - Phase-based commit patterns (180 lines)
+
+**Workflow prompts:**
+
+- `.opencode/prompts/coder/implementation-workflow.md` - 8-phase process (700+ lines)
+- `.opencode/prompts/coder/tdd-patterns.md` - Component/hook/utility test patterns (500+ lines)
+- `.opencode/prompts/coder/solid-patterns.md` - SOLID examples and checklist (400+ lines)
+
+**Templates:**
+
+- `.opencode/templates/coder/component-template.tsx` - React component pattern
+- `.opencode/templates/coder/test-template.test.tsx` - Vitest test pattern
+- `.opencode/templates/coder/story-template.stories.tsx` - Storybook story pattern
+
+**Examples:**
+
+- `specs/examples/coder/130-dark-mode-execution/` - Full execution example
+- `specs/examples/coder/README.md` - Examples overview
+
 ## Additional Notes
 
 - Uses Bun as package manager (>= 1.3.0)
